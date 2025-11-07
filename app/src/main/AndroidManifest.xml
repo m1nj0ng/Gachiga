@@ -12,6 +12,15 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Gachiga10">
         <activity
+            android:name=".JoinActivity"
+            android:exported="false" />
+        <activity
+            android:name=".InviteActivity"
+            android:exported="false" />
+        <activity
+            android:name=".InputActivity"
+            android:exported="false" />
+        <activity
             android:name=".MainActivity"
             android:exported="true">
             <intent-filter>
@@ -20,6 +29,9 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity
+            android:name=".RoleSelectActivity"
+            android:exported="false" />
     </application>
 
 </manifest>
