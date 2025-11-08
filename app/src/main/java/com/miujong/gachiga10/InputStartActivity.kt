@@ -1,32 +1,27 @@
 package com.miujong.gachiga10
 
 import android.os.Bundle
-import android.content.Intent
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
-import com.google.android.material.card.MaterialCardView
+import android.content.Intent
+import android.widget.Button
 
-class JoinActivity : AppCompatActivity() {
+class InputStartActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_join)
+
+        setContentView(R.layout.activity_input_start)
 
         val userRole = intent.getStringExtra("USER_ROLE")
 
-        val codeCard = findViewById<MaterialCardView>(R.id.card_code)
-        val linkCard = findViewById<MaterialCardView>(R.id.card_link)
+        val doneButton = findViewById<Button>(R.id.btn_done)
 
-        codeCard.setOnClickListener {
-            val intent = Intent(this, CodeJoinActivity::class.java)
-            intent.putExtra("USER_ROLE", userRole)
-            startActivity(intent)
-        }
+        doneButton.setOnClickListener {
+            // (나중에 여기서 지도 마커의 위치 저장)
 
-        // 3. '링크' 버튼 클릭 이벤트
-        linkCard.setOnClickListener {
-            val intent = Intent(this, LinkJoinActivity::class.java)
+            val intent = Intent(this, InputTransportActivity::class.java)
             intent.putExtra("USER_ROLE", userRole)
             startActivity(intent)
         }

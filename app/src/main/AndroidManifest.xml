@@ -12,13 +12,43 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Gachiga10">
         <activity
+            android:name=".LeaderChoiceActivity"
+            android:exported="false" />
+        <activity
+            android:name=".VoteResultActivity"
+            android:exported="false" />
+        <activity
+            android:name=".CheckResultActivity"
+            android:exported="false" />
+        <activity
+            android:name=".InputDestActivity"
+            android:exported="false" />
+        <activity
+            android:name=".InputEtaActivity"
+            android:exported="false" />
+        <activity
+            android:name=".InputTransportActivity"
+            android:exported="false" />
+        <activity
+            android:name=".InputStartActivity"
+            android:exported="false" />
+        <activity
+            android:name=".LinkJoinActivity"
+            android:exported="false" />
+        <activity
+            android:name=".CodeJoinActivity"
+            android:exported="false" />
+        <activity
+            android:name=".LinkInviteActivity"
+            android:exported="false" />
+        <activity
+            android:name=".CodeInviteActivity"
+            android:exported="false" />
+        <activity
             android:name=".JoinActivity"
             android:exported="false" />
         <activity
             android:name=".InviteActivity"
-            android:exported="false" />
-        <activity
-            android:name=".InputActivity"
             android:exported="false" />
         <activity
             android:name=".MainActivity"

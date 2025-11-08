@@ -1,0 +1,148 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/main"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="24dp"
+    tools:context=".InputTransportActivity">
+
+    <TextView
+        android:id="@+id/tv_title"
+        android:layout_width="212dp"
+        android:layout_height="64dp"
+        android:layout_marginTop="36dp"
+        android:text="교통수단"
+        android:textColor="@android:color/black"
+        android:textSize="40sp"
+        android:textStyle="bold"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <TextView
+        android:id="@+id/tv_subtitle"
+        android:layout_width="278dp"
+        android:layout_height="60dp"
+        android:layout_marginTop="16dp"
+        android:text="이동 방법을 선택하세요!"
+        android:textSize="24sp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/tv_title" />
+
+    <GridLayout
+        android:id="@+id/grid_transport"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:columnCount="2"
+        android:rowCount="2"
+        android:useDefaultMargins="true"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintVertical_bias="0.45">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/toggle_public"
+            style="?attr/materialButtonOutlinedStyle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_columnWeight="1"
+            android:layout_rowWeight="1"
+            android:paddingTop="32dp"
+            android:paddingBottom="32dp"
+            android:textSize="18sp"
+            android:text="대중교통"
+            android:checkable="true"/>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/toggle_bike"
+            style="?attr/materialButtonOutlinedStyle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_columnWeight="1"
+            android:layout_rowWeight="1"
+            android:paddingTop="32dp"
+            android:paddingBottom="32dp"
+            android:textSize="18sp"
+            android:text="자전거"
+            android:checkable="true"/>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/toggle_walk"
+            style="?attr/materialButtonOutlinedStyle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_columnWeight="1"
+            android:layout_rowWeight="1"
+            android:paddingTop="32dp"
+            android:paddingBottom="32dp"
+            android:textSize="18sp"
+            android:text="도보"
+            android:checkable="true"/>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/toggle_car"
+            style="?attr/materialButtonOutlinedStyle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_columnWeight="1"
+            android:layout_rowWeight="1"
+            android:paddingTop="32dp"
+            android:paddingBottom="32dp"
+            android:textSize="18sp"
+            android:text="자가용"
+            android:checkable="true"/>
+    </GridLayout>
+
+    <LinearLayout
+        android:id="@+id/ll_walk_input"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:visibility="gone"
+        tools:visibility="visible"
+        android:layout_marginTop="16dp"
+        app:layout_constraintTop_toBottomOf="@id/grid_transport"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="최대 가능 도보 시간: "
+            android:textSize="16sp"/>
+
+        <EditText
+            android:id="@+id/et_walk_time"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:hint="(분)"
+            android:inputType="number"
+            android:gravity="end"/>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text=" 분"
+            android:textSize="16sp"/>
+    </LinearLayout>
+
+    <Button
+        android:id="@+id/btn_done"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="32dp"
+        android:layout_marginEnd="32dp"
+        android:layout_marginBottom="32dp"
+        android:paddingTop="12dp"
+        android:paddingBottom="12dp"
+        android:text="완료"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

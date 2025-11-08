@@ -1,32 +1,32 @@
 package com.miujong.gachiga10
 
 import android.os.Bundle
-import android.content.Intent
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
-import com.google.android.material.card.MaterialCardView
+import android.content.Context
+import android.content.Intent
+import android.view.inputmethod.InputMethodManager
+import android.widget.Button
+import android.widget.EditText
 
-class JoinActivity : AppCompatActivity() {
+class CodeJoinActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_join)
+        setContentView(R.layout.activity_code_join)
 
         val userRole = intent.getStringExtra("USER_ROLE")
 
-        val codeCard = findViewById<MaterialCardView>(R.id.card_code)
-        val linkCard = findViewById<MaterialCardView>(R.id.card_link)
+        val doneButton = findViewById<Button>(R.id.btn_done)
+        val codeInput = findViewById<EditText>(R.id.et_code_input)
 
-        codeCard.setOnClickListener {
-            val intent = Intent(this, CodeJoinActivity::class.java)
-            intent.putExtra("USER_ROLE", userRole)
-            startActivity(intent)
-        }
+        codeInput.requestFocus()
+        val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+        imm.showSoftInput(codeInput, InputMethodManager.SHOW_IMPLICIT)
 
-        // 3. '링크' 버튼 클릭 이벤트
-        linkCard.setOnClickListener {
-            val intent = Intent(this, LinkJoinActivity::class.java)
+        doneButton.setOnClickListener {
+            val intent = Intent(this, InputStartActivity::class.java)
             intent.putExtra("USER_ROLE", userRole)
             startActivity(intent)
         }

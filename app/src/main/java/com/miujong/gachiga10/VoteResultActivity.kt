@@ -1,32 +1,30 @@
 package com.miujong.gachiga10
 
-import android.os.Bundle
 import android.content.Intent
+import android.os.Bundle
+import android.widget.Button
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
-import com.google.android.material.card.MaterialCardView
+import android.widget.CheckBox
 
-class JoinActivity : AppCompatActivity() {
+class VoteResultActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_join)
+        setContentView(R.layout.activity_vote_result)
 
         val userRole = intent.getStringExtra("USER_ROLE")
+        val doneButton = findViewById<Button>(R.id.btn_done)
 
-        val codeCard = findViewById<MaterialCardView>(R.id.card_code)
-        val linkCard = findViewById<MaterialCardView>(R.id.card_link)
+        val option1 = findViewById<CheckBox>(R.id.cb_option1)
+        val option2 = findViewById<CheckBox>(R.id.cb_option2)
+        val option3 = findViewById<CheckBox>(R.id.cb_option3)
 
-        codeCard.setOnClickListener {
-            val intent = Intent(this, CodeJoinActivity::class.java)
-            intent.putExtra("USER_ROLE", userRole)
-            startActivity(intent)
-        }
+        // 어떤게 투표되었는지 추가, 선택된 값 확인
 
-        // 3. '링크' 버튼 클릭 이벤트
-        linkCard.setOnClickListener {
-            val intent = Intent(this, LinkJoinActivity::class.java)
+        doneButton.setOnClickListener {
+            val intent = Intent(this, LeaderChoiceActivity::class.java)
             intent.putExtra("USER_ROLE", userRole)
             startActivity(intent)
         }

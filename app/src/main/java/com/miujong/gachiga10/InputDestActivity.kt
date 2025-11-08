@@ -5,12 +5,26 @@ import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.activity.enableEdgeToEdge
+import android.content.Intent
+import android.widget.Button
 
-class InputActivity : AppCompatActivity() {
+class InputDestActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
-        setContentView(R.layout.activity_input)
+        setContentView(R.layout.activity_input_dest)
+
+        val userRole = intent.getStringExtra("USER_ROLE")
+        val doneButton = findViewById<Button>(R.id.btn_done)
+
+        doneButton.setOnClickListener {
+            // (나중에 여기서 지도 마커의 위치 저장)
+
+            val intent = Intent(this, CheckResultActivity::class.java)
+            intent.putExtra("USER_ROLE", userRole)
+            startActivity(intent)
+        }
+
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)

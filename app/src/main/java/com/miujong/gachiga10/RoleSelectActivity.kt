@@ -16,11 +16,13 @@ class RoleSelectActivity : AppCompatActivity() {
 
         leaderCard.setOnClickListener {
             val intent = Intent(this, InviteActivity::class.java)
+            intent.putExtra("USER_ROLE", "LEADER")
             startActivity(intent)
         }
 
         memberCard.setOnClickListener {
             val intent = Intent(this, JoinActivity::class.java)
+            intent.putExtra("USER_ROLE", "MEMBER")
             startActivity(intent)
         }
     }
