@@ -54,6 +54,7 @@ dependencies {
     implementation("androidx.compose.material:material-icons-extended:1.6.7")
     implementation("com.kakao.maps.open:android:2.12.18")
     implementation("com.kakao.sdk:v2-common:2.19.0")
+    implementation("com.kakao.sdk:v2-user:2.19.0")
     implementation("com.google.android.gms:play-services-location:21.3.0")
     // Retrofit (네트워킹 라이브러리)
     implementation("com.squareup.retrofit2:retrofit:2.9.0")
