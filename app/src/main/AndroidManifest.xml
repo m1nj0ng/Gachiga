@@ -2,7 +2,25 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- ========================================================= -->
+    <!-- [필수 권한 설정] -->
+    <!-- ========================================================= -->
+
+    <!-- 지도/REST API 통신용 네트워크 권한 -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <!-- 현재 위치 표시 기능이 필요할 때만 아래 주석 해제 -->
+    <!--
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    -->
+
+    <!-- ========================================================= -->
+    <!-- [애플리케이션 설정] -->
+    <!-- ========================================================= -->
     <application
+        android:name=".App"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
@@ -10,16 +28,28 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.Gachiga10">
+        android:theme="@style/Theme.Gachiga10"
+        tools:targetApi="34">
+
+        <!-- ==================================================== -->
+        <!-- 메인 액티비티 -->
+        <!-- ==================================================== -->
         <activity
             android:name=".MainActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- ==================================================== -->
+        <!-- Kakao Maps SDK 네이티브 앱 키 -->
+        <!-- - App.kt 에서 초기화 시 사용 -->
+        <!-- ==================================================== -->
+        <meta-data
+            android:name="com.kakao.vectormap.APP_KEY"
+            android:value="1fa6dee43f756a8656d7d84a4b70ceb3" />
     </application>
 
 </manifest>
