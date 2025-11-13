@@ -51,6 +51,7 @@ dependencies {
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
     implementation("androidx.navigation:navigation-compose:2.7.7")
+    implementation("com.google.android.material:material:1.12.0")
     implementation("androidx.compose.material:material-icons-extended:1.6.7")
     implementation("com.kakao.maps.open:android:2.12.18")
     implementation("com.kakao.sdk:v2-common:2.19.0")

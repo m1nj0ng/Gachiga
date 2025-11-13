@@ -3,17 +3,7 @@ package com.example.gachiga.ui.map
 import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.WindowInsetsSides
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.ime
-import androidx.compose.foundation.layout.only
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.systemBars
-import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardActions
@@ -21,23 +11,8 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.Button
-import androidx.compose.material3.Divider
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.ListItem
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -49,14 +24,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.example.gachiga.network.Place
 import com.example.gachiga.network.RetrofitInstance
-import com.kakao.vectormap.KakaoMap
-import com.kakao.vectormap.KakaoMapReadyCallback
-import com.kakao.vectormap.LatLng
-import com.kakao.vectormap.MapLifeCycleCallback
-import com.kakao.vectormap.MapView
+import com.kakao.vectormap.*
 import com.kakao.vectormap.camera.CameraUpdateFactory
 import kotlinx.coroutines.launch
-import kotlin.text.ifEmpty
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -92,8 +62,6 @@ fun MapSelectionScreen(
         }
     }
 
-    val mapView = remember { mutableStateOf<MapView?>(null) }
-
     Scaffold(
         topBar = {
             TopAppBar(
@@ -113,7 +81,7 @@ fun MapSelectionScreen(
                 .fillMaxSize()
                 .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal))
         ) {
-            // 1. 검색창
+            // 검색창
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
@@ -136,18 +104,39 @@ fun MapSelectionScreen(
                 }
             )
 
-            // 2. 지도와 검색 결과 영역을 담는 Box
+            // 지도와 검색 결과 영역
             Box(modifier = Modifier.fillMaxSize()) {
                 AndroidView(
                     factory = { context ->
-                        MapView(context).also {
-                            mapView.value = it // 생성된 MapView를 상태에 저장
+                        MapView(context).apply {
+                            this.start(object : MapLifeCycleCallback() {      // 1. MapLifeCycleCallback이 먼저 오도록
+                                override fun onMapDestroy() {}
+                                override fun onMapError(error: Exception) {
+                                    Log.e("GachigaMap", "Map Error: $error")
+                                }
+                            }, object : KakaoMapReadyCallback() {         // 2. KakaoMapReadyCallback이 나중에 오도록
+                                override fun onMapReady(map: KakaoMap) {
+                                    kakaoMap = map
+                                    // 지도가 준비되면 지도 클릭 리스너 설정
+                                    map.setOnMapClickListener { _, _, _, _ ->
+                                        searchResults = emptyList() // 지도 클릭 시 검색 결과 숨김
+                                        selectedPlace = null // 선택된 장소도 초기화
+                                    }
+                                }
+
+                                override fun getZoomLevel(): Int {
+                                    return 16 // 초기 줌 레벨
+                                }
+                            })
                         }
+                    },
+                    update = {
+                        // Composable이 업데이트될 때 필요한 로직 (지금은 비워둠)
                     },
                     modifier = Modifier.fillMaxSize()
                 )
 
-                // 3. 검색 결과 목록
+                // 검색 결과 목록
                 if (searchResults.isNotEmpty()) {
                     LazyColumn(
                         modifier = Modifier
@@ -158,10 +147,7 @@ fun MapSelectionScreen(
                         items(searchResults) { place ->
                             ListItem(
                                 headlineContent = {
-                                    Text(
-                                        place.placeName,
-                                        fontWeight = FontWeight.Bold
-                                    )
+                                    Text(place.placeName, fontWeight = FontWeight.Bold)
                                 },
                                 supportingContent = { Text(place.roadAddressName.ifEmpty { place.addressName }) },
                                 modifier = Modifier.clickable {
@@ -184,7 +170,7 @@ fun MapSelectionScreen(
                     }
                 }
 
-                // 4. 최종 선택 버튼 (장소가 선택되었을 때만 보임)
+                // 최종 선택 버튼 (장소가 선택되었을 때만 보임)
                 selectedPlace?.let { place ->
                     Button(
                         onClick = {
@@ -203,23 +189,5 @@ fun MapSelectionScreen(
                 }
             }
         }
-    }
-
-    // ★★★ 지도 관련 로직을 LaunchedEffect로 분리 ★★★
-    LaunchedEffect(mapView.value) {
-        val currentMapView = mapView.value ?: return@LaunchedEffect
-        currentMapView.start(object : MapLifeCycleCallback() {
-            override fun onMapDestroy() {}
-            override fun onMapError(error: Exception) {
-                Log.e("Gachiga", "Map Error: $error")
-            }
-        }, object : KakaoMapReadyCallback() {
-            override fun onMapReady(map: KakaoMap) {
-                kakaoMap = map
-                map.setOnMapClickListener { _, _, _, _ ->
-                    searchResults = emptyList()
-                }
-            }
-        })
     }
 }

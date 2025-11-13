@@ -1,25 +1,15 @@
 package com.example.gachiga.ui.lobby
 
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
+import android.util.Log
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
-import androidx.compose.material3.Button
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material.icons.filled.Logout
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -27,19 +17,72 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.gachiga.data.LoggedInState
+import com.example.gachiga.data.RoomDetail
 import com.example.gachiga.navigation.AppDestinations
+import com.kakao.sdk.user.UserApiClient
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun LobbyScreen(navController: NavController, state: LoggedInState) {
+fun LobbyScreen(
+    navController: NavController,
+    state: LoggedInState,
+    onRoomCreated: (RoomDetail) -> Unit
+) {
+    var menuExpanded by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
+
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Gachiga 로비") },
                 actions = {
-                    // 프로필 아이콘 (임시)
-                    IconButton(onClick = { /* TODO: 프로필 화면으로 이동 */ }) {
-                        Icon(Icons.Default.AccountCircle, contentDescription = "내 정보")
+                    // 프로필 아이콘을 클릭하면 메뉴가 토글
+                    Box {
+                        IconButton(onClick = { menuExpanded = !menuExpanded }) {
+                            Icon(
+                                imageVector = Icons.Default.AccountCircle,
+                                contentDescription = "내 정보"
+                            )
+                        }
+
+                        // 로그아웃 드롭다운 메뉴
+                        DropdownMenu(
+                            expanded = menuExpanded,
+                            onDismissRequest = { menuExpanded = false }
+                        ) {
+                            // "로그아웃" 메뉴 아이템
+                            DropdownMenuItem(
+                                text = { Text("로그아웃") },
+                                onClick = {
+                                    menuExpanded = false // 메뉴를 닫음
+                                    // ★★★ 4. 로그아웃 로직 실행 ★★★
+                                    coroutineScope.launch {
+                                        UserApiClient.instance.logout { error ->
+                                            if (error != null) {
+                                                Log.e("KAKAO_LOGOUT", "로그아웃 실패. SDK에서 토큰 삭제됨", error)
+                                            } else {
+                                                Log.i("KAKAO_LOGOUT", "로그아웃 성공. SDK에서 토큰 삭제됨")
+                                            }
+                                            // 로그아웃 성공/실패 여부와 관계없이 시작 화면으로 이동
+                                            navController.navigate(AppDestinations.START_SCREEN) {
+                                                // 백스택의 모든 화면을 제거하여 뒤로가기 시 로비로 돌아오지 않도록 함
+                                                popUpTo(navController.graph.id) {
+                                                    inclusive = true
+                                                }
+                                            }
+                                        }
+                                    }
+                                },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Default.Logout,
+                                        contentDescription = "로그아웃 아이콘"
+                                    )
+                                }
+                            )
+                            // TODO: 여기에 다른 메뉴(예: 회원탈퇴)를 추가할 수 있습니다.
+                        }
                     }
                 }
             )
@@ -61,7 +104,7 @@ fun LobbyScreen(navController: NavController, state: LoggedInState) {
 
             // 새 약속 만들기 버튼
             Button(
-                onClick = { /* TODO: 방 만들기 화면으로 이동하는 로직 추가 */ },
+                onClick = { onRoomCreated(RoomDetail()) },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(80.dp),

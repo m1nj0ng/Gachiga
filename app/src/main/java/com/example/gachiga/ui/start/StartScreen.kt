@@ -1,15 +1,22 @@
 package com.example.gachiga.ui.start
 
+import android.util.Log
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.kakao.sdk.common.model.ClientError
+import com.kakao.sdk.common.model.ClientErrorCause
+import com.kakao.sdk.user.UserApiClient
+import kotlinx.coroutines.launch
 
 /**
  * 로그인 / 비로그인 진행을 선택하는 앱의 첫 화면
@@ -21,6 +28,9 @@ fun StartScreen(
     onNavigateToLogin: () -> Unit,
     onNavigateToInput: () -> Unit
 ) {
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background
@@ -47,13 +57,54 @@ fun StartScreen(
 
             // --- 로그인 버튼 ---
             Button(
-                onClick = onNavigateToLogin, // 클릭 시 로그인 화면으로 이동하는 콜백 호출
+                onClick = {
+                    coroutineScope.launch {
+                        // 로그인 성공/실패 시 공통으로 처리할 콜백 함수
+                        val callback: (token: Any?, error: Throwable?) -> Unit = { token, error ->
+                            if (error != null) {
+                                Log.e("KAKAO_LOGIN", "로그인 실패", error)
+                            } else if (token != null) {
+                                Log.i("KAKAO_LOGIN", "로그인 성공")
+                                // 로그인 성공 시, 외부(Navigation.kt)로 알림
+                                onNavigateToLogin()
+                            }
+                        }
+
+                        // 카카오톡이 설치되어 있는지 확인
+                        if (UserApiClient.instance.isKakaoTalkLoginAvailable(context)) {
+                            // 카카오톡으로 로그인 시도
+                            UserApiClient.instance.loginWithKakaoTalk(context) { token, error ->
+                                if (error != null) {
+                                    Log.e("KAKAO_LOGIN", "카카오톡으로 로그인 실패", error)
+
+                                    // 사용자가 카카오톡에서 로그인을 취소한 경우, 다른 시도 없이 종료
+                                    if (error is ClientError && error.reason == ClientErrorCause.Cancelled) {
+                                        return@loginWithKakaoTalk
+                                    }
+                                    // 그 외 다른 오류(예: 카카오톡에 연결된 계정 없음)의 경우, 카카오계정으로 로그인 시도
+                                    UserApiClient.instance.loginWithKakaoAccount(context, callback = callback)
+                                } else if (token != null) {
+                                    // 카카오톡 로그인 성공
+                                    callback(token, null)
+                                }
+                            }
+                        } else {
+                            // 카카오톡이 없으면, 카카오계정으로 로그인 시도
+                            UserApiClient.instance.loginWithKakaoAccount(context, callback = callback)
+                        }
+                    }
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(50.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFEE500)),
                 shape = RoundedCornerShape(12.dp)
             ) {
-                Text("로그인하고 시작하기", fontSize = 16.sp)
+                Text(
+                    "카카오톡으로 로그인하기",
+                    color = Color.Black,
+                    fontSize = 16.sp
+                )
             }
 
             Spacer(modifier = Modifier.height(12.dp))
