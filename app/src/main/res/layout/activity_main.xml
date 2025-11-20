@@ -6,9 +6,6 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <!-- ================================================================== -->
-    <!-- [지도 / 컨트롤 패널 영역 분리 기준선] -->
-    <!-- ================================================================== -->
     <androidx.constraintlayout.widget.Guideline
         android:id="@+id/guide_panel_top"
         android:layout_width="wrap_content"
@@ -16,9 +13,6 @@
         android:orientation="horizontal"
         app:layout_constraintGuide_percent="0.62" />
 
-    <!-- ================================================================== -->
-    <!-- [지도 영역] -->
-    <!-- ================================================================== -->
     <com.kakao.vectormap.MapView
         android:id="@+id/map_view"
         android:layout_width="0dp"
@@ -28,9 +22,6 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
-    <!-- ================================================================== -->
-    <!-- [하단 컨트롤 패널 - 스크롤 가능] -->
-    <!-- ================================================================== -->
     <androidx.core.widget.NestedScrollView
         android:id="@+id/bottom_panel_scroll"
         android:layout_width="0dp"
@@ -41,9 +32,6 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
-        <!-- ============================================================= -->
-        <!-- [패널 콘텐츠] -->
-        <!-- ============================================================= -->
         <LinearLayout
             android:id="@+id/bottom_panel"
             android:layout_width="match_parent"
@@ -52,9 +40,6 @@
             android:padding="12dp"
             android:background="#CCFFFFFF">
 
-            <!-- ========================================================= -->
-            <!-- 목적지 / 사용자 추가 / 길찾기 버튼 -->
-            <!-- ========================================================= -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -82,31 +67,6 @@
                     android:layout_marginStart="8dp" />
             </LinearLayout>
 
-            <!-- ========================================================= -->
-            <!-- 우선순위 선택 (추천 / 시간 / 거리 / 가격) -->
-            <!-- ========================================================= -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:layout_marginTop="8dp">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="우선순위: "
-                    android:textStyle="bold"
-                    android:layout_marginEnd="8dp" />
-
-                <Spinner
-                    android:id="@+id/spinner_priority"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content" />
-            </LinearLayout>
-
-            <!-- ========================================================= -->
-            <!-- 사용자 리스트 -->
-            <!-- ========================================================= -->
             <LinearLayout
                 android:id="@+id/user_container"
                 android:layout_width="match_parent"
@@ -114,9 +74,6 @@
                 android:orientation="vertical"
                 android:layout_marginTop="8dp" />
 
-            <!-- ========================================================= -->
-            <!-- ETA (이동 거리 / 시간 / 요금 등) 출력 -->
-            <!-- ========================================================= -->
             <TextView
                 android:id="@+id/txt_eta"
                 android:layout_width="match_parent"
