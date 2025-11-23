@@ -19,6 +19,8 @@ import com.example.gachiga.data.LoggedInState
 import com.example.gachiga.data.RoomDetail
 import com.example.gachiga.data.RoomMember
 import com.example.gachiga.ui.lobby.LobbyScreen
+import com.example.gachiga.ui.result.ResultScreen
+import com.example.gachiga.ui.result.VoteScreen
 import com.example.gachiga.ui.room.RoomDetailScreen
 import com.kakao.sdk.user.UserApiClient
 
@@ -30,6 +32,7 @@ object AppDestinations {
     const val MAP_SELECTION_SCREEN = "map_selection"
     const val CREATE_ROOM_SCREEN = "create_room"
     const val ROOM_DETAIL_SCREEN = "room_detail/{roomId}"
+    const val RESULT_SCREEN = "result"
 }
 
 @Composable
@@ -84,7 +87,7 @@ fun GachigaApp(
                 state = loggedInState,
                 onRoomCreated = { newRoom ->
                     loggedInState.currentUser?.let { user ->
-                        val hostMember = RoomMember(user = loggedInState.currentUser!!, isHost = true)
+                        val hostMember = RoomMember(user = user, isHost = true)
                         roomDetailState = newRoom.copy(members = listOf(hostMember))
                         navController.navigate("room_detail/${newRoom.roomId}")
                     }
@@ -105,18 +108,69 @@ fun GachigaApp(
         composable(AppDestinations.ROOM_DETAIL_SCREEN) { backStackEntry ->
             val roomId = backStackEntry.arguments?.getString("roomId")
             if (roomDetailState != null && roomDetailState!!.roomId == roomId) {
-                RoomDetailScreen(
-                    navController = navController,
-                    loggedInUser = loggedInState.currentUser!!,
-                    roomDetail = roomDetailState!!,
-                    onStateChange = { roomDetailState = it }
-                )
+                // 추천 경로가 있는지에 따라 다른 화면을 보여줌
+                if (roomDetailState!!.suggestedRoutes.isEmpty()) {
+                    // 추천 경로가 없을 때: 기존의 방 상세 정보 화면
+                    RoomDetailScreen(
+                        navController = navController,
+                        loggedInUser = loggedInState.currentUser!!,
+                        roomDetail = roomDetailState!!,
+                        onStateChange = { roomDetailState = it },
+                        onCalculate = {
+                            // 계산 버튼 클릭 시, 가짜 데이터를 생성하여 상태 업데이트
+                            val dummyRoutes = listOf(
+                                SuggestedRoute("1", "강남역 2호선", "서울 강남구 강남대로 396", "1시간 12분", "3,200원"),
+                                SuggestedRoute("2", "사당역 2,4호선", "서울 동작구 동작대로 3", "1시간 25분", "2,800원"),
+                                SuggestedRoute("3", "판교역 신분당선", "경기 성남시 분당구 판교역로 160", "1시간 40분", "4,150원")
+                            )
+                            roomDetailState = roomDetailState?.copy(suggestedRoutes = dummyRoutes)
+                        }
+                    )
+                } else {
+                    // 추천 경로가 있을 때: 로그인용 투표 화면 (VoteScreen)
+                    val isHost = roomDetailState!!.members.find { it.user.id == loggedInState.currentUser!!.id }?.isHost ?: false
+                    VoteScreen(
+                        navController = navController,
+                        loggedInUser = loggedInState.currentUser!!,
+                        members = roomDetailState!!.members, // ★ 멤버 목록 전달
+                        routes = roomDetailState!!.suggestedRoutes,
+                        isHost = isHost,
+                        onVote = { routeId, userId ->
+                            // 투표 로직
+                            val updatedRoutes = roomDetailState!!.suggestedRoutes.map { route ->
+                                if (route.id == routeId) {
+                                    val newVoters = if (userId in route.voters) {
+                                        route.voters - userId
+                                    } else {
+                                        (route.voters + userId).distinct() // 중복 투표 방지 (만약 필요하다면)
+                                    }
+                                    route.copy(voters = newVoters)
+                                } else {
+                                    route
+                                }
+                            }
+                            roomDetailState = roomDetailState!!.copy(suggestedRoutes = updatedRoutes)
+                        },
+                        onVoteComplete = { userId ->
+                            val updatedMembers = roomDetailState!!.members.map {
+                                if (it.user.id == userId) it.copy(voted = true) else it
+                            }
+                            roomDetailState = roomDetailState!!.copy(members = updatedMembers)
+                        },
+                        onFinalSelect = { routeId ->
+                            // 최종 선택 로직
+                            val finalPlaceName = roomDetailState!!.suggestedRoutes.find { it.id == routeId }?.placeName
+                            roomDetailState = roomDetailState!!.copy(finalPlace = finalPlaceName)
+                        }
+                    )
+                }
             }
         }
 
-        // 지도 선택 화면
+        // 지도 선택 화면 (비로그인/로그인 공용)
         composable(
-            "${AppDestinations.MAP_SELECTION_SCREEN}/{type}/{memberIndex}?roomId={roomId}",
+            // 1. roomId를 선택적 파라미터로 설정하여 두 가지 경로를 모두 처리
+            route = "${AppDestinations.MAP_SELECTION_SCREEN}/{type}/{memberIndex}?roomId={roomId}",
             arguments = listOf(navArgument("roomId") { nullable = true })
         ) { backStackEntry ->
             val type = backStackEntry.arguments?.getString("type") ?: ""
@@ -127,41 +181,56 @@ fun GachigaApp(
                 onLocationSelected = { selectedName, _ ->
                     when (type) {
                         "destination" -> {
-                            // RoomDetailScreen에서 온 요청인지 확인
+                            // 2. roomId 유무로 로그인/비로그인 상태를 구분하여 올바른 상태를 업데이트
                             if (roomId != null && roomDetailState != null) {
+                                // 로그인 버전: roomDetailState 업데이트
                                 roomDetailState = roomDetailState!!.copy(destination = selectedName)
-                            } else { // 비로그인 버전의 요청
+                            } else {
+                                // 비로그인 버전: nonLoggedInState 업데이트
                                 onNonLoggedInStateChange(nonLoggedInState.copy(destination = selectedName))
                             }
                         }
-
                         "startPoint" -> {
-                            // ★★★ 출발지 설정 로직 수정 ★★★
-                            // 로그인 상태의 방에서 출발지를 설정하는 경우
-                            if (roomId != null && roomDetailState != null) {
-                                val loggedInUser = loggedInState.currentUser
-                                if (loggedInUser != null) {
-                                    // 현재 로그인한 사용자의 멤버 정보를 찾아서 출발지를 업데이트
-                                    val updatedMembers = roomDetailState!!.members.map { member ->
-                                        if (member.user.id == loggedInUser.id) {
-                                            member.copy(startPoint = selectedName, isReady = false) // 출발지 변경 시 준비완료 해제
-                                        } else {
-                                            member
-                                        }
+                            // 3. 출발지 설정도 동일하게 구분하여 처리
+                            if (roomId != null && roomDetailState != null && loggedInState.currentUser != null) {
+                                // 로그인 버전: 현재 사용자의 출발지 업데이트 및 준비완료 해제
+                                val updatedMembers = roomDetailState!!.members.map { member ->
+                                    if (member.user.id == loggedInState.currentUser!!.id) {
+                                        member.copy(startPoint = selectedName, isReady = false)
+                                    } else {
+                                        member
                                     }
-                                    // 변경된 멤버 목록으로 전체 방 상태를 업데이트
-                                    roomDetailState = roomDetailState!!.copy(members = updatedMembers)
                                 }
-                            } else { // 비로그인 버전의 요청 (기존 로직 유지)
-                                val updatedMembers = nonLoggedInState.members.toMutableList()
-                                updatedMembers[memberIndex] = updatedMembers[memberIndex].copy(startPoint = selectedName)
-                                onNonLoggedInStateChange(nonLoggedInState.copy(members = updatedMembers))
+                                roomDetailState = roomDetailState!!.copy(members = updatedMembers)
+                            } else {
+                                // 비로그인 버전: memberIndex를 사용하여 출발지 업데이트
+                                if (memberIndex != -1) {
+                                    val updatedMembers = nonLoggedInState.members.toMutableList()
+                                    updatedMembers[memberIndex] =
+                                        updatedMembers[memberIndex].copy(startPoint = selectedName)
+                                    onNonLoggedInStateChange(nonLoggedInState.copy(members = updatedMembers))
+                                }
                             }
                         }
                     }
                     navController.popBackStack()
                 },
                 onCancel = { navController.popBackStack() }
+            )
+        }
+
+        // 비로그인용 결과 화면 composable 블록 추가
+        composable(AppDestinations.RESULT_SCREEN) {
+            // TODO: 실제 계산 결과를 여기에 전달해야 함
+            // 지금은 임시로 만든 가짜 데이터를 사용합니다.
+            val dummyRoutes = listOf(
+                SuggestedRoute("1", "강남역 2호선", "서울 강남구 강남대로 396", "1시간 12분", "3,200원"),
+                SuggestedRoute("2", "사당역 2,4호선", "서울 동작구 동작대로 3", "1시간 25분", "2,800원"),
+                SuggestedRoute("3", "판교역 신분당선", "경기 성남시 분당구 판교역로 160", "1시간 40분", "4,150원")
+            )
+            ResultScreen(
+                navController = navController,
+                routes = dummyRoutes
             )
         }
     }

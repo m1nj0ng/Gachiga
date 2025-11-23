@@ -54,6 +54,7 @@ fun InputScreen(
     onStateChange: (GachigaState) -> Unit
 ) {
     val scrollState = rememberScrollState()
+    val allStartPointsSet = gachigaState.members.all { it.startPoint != "미설정" }
 
     Scaffold(
         topBar = {
@@ -94,7 +95,10 @@ fun InputScreen(
                 }
             )
             Button(
-                onClick = { /* TODO: 3단계 로직 */ },
+                onClick = {
+                    navController.navigate(AppDestinations.RESULT_SCREEN)
+                },
+                enabled = allStartPointsSet && gachigaState.destination != "미설정",
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 16.dp),
@@ -132,14 +136,24 @@ fun CommonInfoSection(
     }
 
     if (showTimePicker) {
+        // 1. TimePickerDialog에 전달할 초기 시간을 파싱합니다.
+        val initialHour = state.arrivalTime.substringBefore(":").toIntOrNull() ?: 12
+        val initialMinute = state.arrivalTime.substringAfter(":").toIntOrNull() ?: 0
+
+        // 2. CommonUI.kt에 정의된 파라미터 형식에 맞게 호출합니다.
         TimePickerDialog(
-            context = LocalContext.current,
+            initialHour = initialHour,
+            initialMinute = initialMinute,
             onTimeSelected = { hour, minute ->
                 val formattedTime = String.format("%02d:%02d", hour, minute)
                 onStateChange(state.copy(arrivalTime = formattedTime))
-                showTimePicker = false
+                // onTimeSelected 안에서는 showTimePicker를 false로 바꿀 필요가 없습니다.
+                // onDismiss가 항상 호출되기 때문입니다.
             },
-            onDismiss = { showTimePicker = false }
+            onDismiss = {
+                // '확인' 또는 '취소'를 누르거나, 바깥을 클릭하면 항상 호출됩니다.
+                showTimePicker = false
+            }
         )
     }
 }

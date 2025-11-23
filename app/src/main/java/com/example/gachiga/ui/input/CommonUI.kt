@@ -1,24 +1,16 @@
 package com.example.gachiga.ui.input
 
-import android.content.Context
-import android.icu.util.Calendar
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.remember
+import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.semantics.dismiss
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
 
+// InfoRow와 TransportButton은 기존과 동일합니다.
 @Composable
 fun InfoRow(icon: ImageVector, title: String, content: @Composable () -> Unit) {
     Row(
@@ -48,24 +40,50 @@ fun TransportButton(text: String, isSelected: Boolean, onClick: () -> Unit) {
     }
 }
 
+
+// ★★★ 순수 Composable로 만든 TimePickerDialog ★★★
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TimePickerDialog(
-    context: Context,
+    initialHour: Int,
+    initialMinute: Int,
     onTimeSelected: (hour: Int, minute: Int) -> Unit,
     onDismiss: () -> Unit
 ) {
-    val calendar = Calendar.getInstance()
-    val timePickerDialog = remember {
-        android.app.TimePickerDialog(
-            context,
-            { _, hour, minute -> onTimeSelected(hour, minute) },
-            calendar.get(Calendar.HOUR_OF_DAY),
-            calendar.get(Calendar.MINUTE),
-            true // 24시간 형식
-        ).apply { setOnDismissListener { onDismiss() } }
-    }
-    DisposableEffect(Unit) {
-        timePickerDialog.show()
-        onDispose { timePickerDialog.dismiss() }
+    val timePickerState = rememberTimePickerState(
+        initialHour = initialHour,
+        initialMinute = initialMinute,
+        is24Hour = true
+    )
+
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(shape = MaterialTheme.shapes.extraLarge) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text("도착 시간 선택", style = MaterialTheme.typography.titleLarge)
+                Spacer(modifier = Modifier.height(16.dp))
+                TimePicker(state = timePickerState)
+                Spacer(modifier = Modifier.height(16.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(onClick = onDismiss) {
+                        Text("취소")
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    TextButton(
+                        onClick = {
+                            onTimeSelected(timePickerState.hour, timePickerState.minute)
+                            onDismiss()
+                        }
+                    ) {
+                        Text("확인")
+                    }
+                }
+            }
+        }
     }
 }

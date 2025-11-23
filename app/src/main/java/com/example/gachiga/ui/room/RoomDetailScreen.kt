@@ -1,5 +1,9 @@
 package com.example.gachiga.ui.room
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -21,18 +25,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import androidx.fragment.app.FragmentActivity
 import com.example.gachiga.data.RoomDetail
 import com.example.gachiga.data.RoomMember
 import com.example.gachiga.data.User
 import com.example.gachiga.navigation.AppDestinations
 import com.example.gachiga.ui.input.InfoRow
-import com.example.gachiga.ui.input.TransportButton
 import com.example.gachiga.ui.input.TimePickerDialog
-import android.content.ClipData
-import android.content.ClipboardManager
-import android.content.Context
-import android.widget.Toast
+import com.example.gachiga.ui.input.TransportButton
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -40,7 +39,8 @@ fun RoomDetailScreen(
     navController: NavController,
     loggedInUser: User,
     roomDetail: RoomDetail,
-    onStateChange: (RoomDetail) -> Unit
+    onStateChange: (RoomDetail) -> Unit,
+    onCalculate: () -> Unit
 ) {
     val isHost = roomDetail.members.find { it.user.id == loggedInUser.id }?.isHost ?: false
     val allMembersReady = roomDetail.members.all { it.isReady }
@@ -103,7 +103,7 @@ fun RoomDetailScreen(
             // --- 방장 전용 계산 버튼 ---
             if (isHost) {
                 Button(
-                    onClick = { /* TODO: 중간지점 계산 로직 */ },
+                    onClick = { onCalculate() },
                     enabled = allMembersReady, // 모든 멤버가 준비 완료 상태일 때만 활성화
                     modifier = Modifier
                         .fillMaxWidth()
@@ -179,19 +179,24 @@ private fun CommonInfoSection(
         InfoRow(icon = Icons.Default.Schedule, title = "도착 시간") {
             Button(
                 onClick = { showTimePicker = true },
-                enabled = isHost // 방장만 활성화
+                enabled = isHost
             ) {
                 Text(roomDetail.arrivalTime)
             }
         }
     }
+
     if (showTimePicker) {
+        val initialHour = roomDetail.arrivalTime.substringBefore(":").toIntOrNull() ?: 12
+        val initialMinute = roomDetail.arrivalTime.substringAfter(":").toIntOrNull() ?: 0
+
+        // 새로운 TimePickerDialog 호출
         TimePickerDialog(
-            context = LocalContext.current,
+            initialHour = initialHour,
+            initialMinute = initialMinute,
             onTimeSelected = { hour, minute ->
                 val formattedTime = String.format("%02d:%02d", hour, minute)
                 onStateChange(roomDetail.copy(arrivalTime = formattedTime))
-                showTimePicker = false
             },
             onDismiss = {
                 showTimePicker = false
@@ -286,6 +291,7 @@ private fun MemberStatusCard(
                 Spacer(modifier = Modifier.height(16.dp))
                 Button(
                     onClick = { onStateChange(member.copy(isReady = true)) },
+                    enabled = member.startPoint != "미설정",
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text("준비 완료")
