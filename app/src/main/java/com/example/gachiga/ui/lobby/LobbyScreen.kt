@@ -27,12 +27,10 @@ import kotlinx.coroutines.launch
 fun LobbyScreen(
     navController: NavController,
     state: LoggedInState,
-    onRoomCreated: (RoomDetail) -> Unit,
-    onJoinRoom: (String) -> Unit
+    onRoomCreated: (RoomDetail) -> Unit
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
-    var inputCode by remember { mutableStateOf("") }
 
     Scaffold(
         topBar = {
@@ -119,25 +117,15 @@ fun LobbyScreen(
 
             // 초대 코드로 참여하기
             OutlinedTextField(
-                value = inputCode, // 1. 아까 만든 변수와 연결
-                onValueChange = { inputCode = it }, // 2. 타자 칠 때마다 변수 업데이트
+                value = "",
+                onValueChange = {},
                 label = { Text("초대 코드 입력") },
-                placeholder = { Text("6자리 코드 입력") },
-                singleLine = true, // 한 줄만 입력 가능하게
                 modifier = Modifier.fillMaxWidth(),
                 trailingIcon = {
-                    TextButton(
-                        onClick = {
-                            // 3. 코드가 비어있지 않으면 '참여하기' 실행!
-                            if (inputCode.isNotBlank()) {
-                                onJoinRoom(inputCode)
-                            }
-                        }
-                    ) {
-                        Text("참여", fontWeight = FontWeight.Bold)
+                    TextButton(onClick = { /* TODO: 코드로 참여 로직 */ }) {
+                        Text("참여")
                     }
-                }
-            )
+                })
         }
     }
 }
