@@ -110,7 +110,7 @@ fun InputScreen(
     }
 }
 
-// --- 공통 정보 섹션 (목적지, 도착시간) ---
+// 공통 정보 섹션 (목적지, 도착시간)
 @Composable
 fun CommonInfoSection(
     navController: NavController,
@@ -136,29 +136,24 @@ fun CommonInfoSection(
     }
 
     if (showTimePicker) {
-        // 1. TimePickerDialog에 전달할 초기 시간을 파싱합니다.
         val initialHour = state.arrivalTime.substringBefore(":").toIntOrNull() ?: 12
         val initialMinute = state.arrivalTime.substringAfter(":").toIntOrNull() ?: 0
 
-        // 2. CommonUI.kt에 정의된 파라미터 형식에 맞게 호출합니다.
         TimePickerDialog(
             initialHour = initialHour,
             initialMinute = initialMinute,
             onTimeSelected = { hour, minute ->
                 val formattedTime = String.format("%02d:%02d", hour, minute)
                 onStateChange(state.copy(arrivalTime = formattedTime))
-                // onTimeSelected 안에서는 showTimePicker를 false로 바꿀 필요가 없습니다.
-                // onDismiss가 항상 호출되기 때문입니다.
             },
             onDismiss = {
-                // '확인' 또는 '취소'를 누르거나, 바깥을 클릭하면 항상 호출됩니다.
                 showTimePicker = false
             }
         )
     }
 }
 
-// --- 멤버별 정보 섹션 ---
+// 멤버별 정보 섹션
 @Composable
 fun MemberInfoSection(
     navController: NavController,
@@ -200,7 +195,7 @@ fun MemberInfoSection(
     }
 }
 
-// --- 각 멤버의 정보 카드 ---
+// 각 멤버의 정보 카드
 @Composable
 fun MemberCard(
     navController: NavController,
@@ -240,20 +235,16 @@ fun MemberCard(
                     // "대중교통" 버튼
                     TransportButton(
                         text = "대중교통",
-                        // usePublicTransit 값에 따라 선택 상태 결정
                         isSelected = member.usePublicTransit,
                         onClick = {
-                            // usePublicTransit 값을 반전(toggle)시켜서 상태 변경
                             onMemberChange(member.copy(usePublicTransit = !member.usePublicTransit))
                         }
                     )
                     // "자차" 버튼
                     TransportButton(
                         text = "자차",
-                        // useCar 값에 따라 선택 상태 결정
                         isSelected = member.useCar,
                         onClick = {
-                            // useCar 값을 반전(toggle)시켜서 상태 변경
                             onMemberChange(member.copy(useCar = !member.useCar))
                         }
                     )

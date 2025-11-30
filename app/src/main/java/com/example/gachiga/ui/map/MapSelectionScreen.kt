@@ -40,12 +40,12 @@ fun MapSelectionScreen(
     var kakaoMap by remember { mutableStateOf<KakaoMap?>(null) }
     val coroutineScope = rememberCoroutineScope()
 
-    // 2. 키보드 컨트롤러와 포커스 매니저를 가져옴
+    // 키보드 컨트롤러와 포커스 매니저를 가져옴
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
     val KAKAO_API_KEY = "KakaoAK d162317df274417a97079a2d645e51a7"
 
-    // 3. 검색을 실행하는 공통 함수
+    // 검색을 실행하는 공통 함수
     fun performSearch() {
         if (searchQuery.isNotBlank()) {
             coroutineScope.launch {
@@ -90,7 +90,7 @@ fun MapSelectionScreen(
                     .padding(8.dp),
                 label = { Text("장소, 주소 검색") },
                 singleLine = true,
-                // 4. 키보드 액션 설정
+                // 키보드 액션 설정
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                 keyboardActions = KeyboardActions(onSearch = {
                     performSearch() // 키보드의 검색 버튼 클릭 시 검색 실행
@@ -140,7 +140,7 @@ fun MapSelectionScreen(
                 if (searchResults.isNotEmpty()) {
                     LazyColumn(
                         modifier = Modifier
-                            .fillMaxSize() // fillMaxHeight(0.7f) 대신 fillMaxSize() 사용
+                            .fillMaxSize()
                             .background(Color.White)
                             .windowInsetsPadding(WindowInsets.ime) // 키보드 영역만큼 패딩
                     ) {

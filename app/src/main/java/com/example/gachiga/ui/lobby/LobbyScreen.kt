@@ -27,19 +27,16 @@ import kotlinx.coroutines.launch
 fun LobbyScreen(
     navController: NavController,
     state: LoggedInState,
-    onRoomCreated: (RoomDetail) -> Unit,
-    onJoinRoom: (String) -> Unit
+    onRoomCreated: (RoomDetail) -> Unit
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
-    var inputCode by remember { mutableStateOf("") }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Gachiga 로비") },
                 actions = {
-                    // 프로필 아이콘을 클릭하면 메뉴가 토글
                     Box {
                         IconButton(onClick = { menuExpanded = !menuExpanded }) {
                             Icon(
@@ -48,17 +45,14 @@ fun LobbyScreen(
                             )
                         }
 
-                        // 로그아웃 드롭다운 메뉴
                         DropdownMenu(
                             expanded = menuExpanded,
                             onDismissRequest = { menuExpanded = false }
                         ) {
-                            // "로그아웃" 메뉴 아이템
                             DropdownMenuItem(
                                 text = { Text("로그아웃") },
                                 onClick = {
-                                    menuExpanded = false // 메뉴를 닫음
-                                    // ★★★ 4. 로그아웃 로직 실행 ★★★
+                                    menuExpanded = false
                                     coroutineScope.launch {
                                         UserApiClient.instance.logout { error ->
                                             if (error != null) {
@@ -66,9 +60,7 @@ fun LobbyScreen(
                                             } else {
                                                 Log.i("KAKAO_LOGOUT", "로그아웃 성공. SDK에서 토큰 삭제됨")
                                             }
-                                            // 로그아웃 성공/실패 여부와 관계없이 시작 화면으로 이동
                                             navController.navigate(AppDestinations.START_SCREEN) {
-                                                // 백스택의 모든 화면을 제거하여 뒤로가기 시 로비로 돌아오지 않도록 함
                                                 popUpTo(navController.graph.id) {
                                                     inclusive = true
                                                 }
@@ -119,25 +111,15 @@ fun LobbyScreen(
 
             // 초대 코드로 참여하기
             OutlinedTextField(
-                value = inputCode, // 1. 아까 만든 변수와 연결
-                onValueChange = { inputCode = it }, // 2. 타자 칠 때마다 변수 업데이트
+                value = "",
+                onValueChange = {},
                 label = { Text("초대 코드 입력") },
-                placeholder = { Text("6자리 코드 입력") },
-                singleLine = true, // 한 줄만 입력 가능하게
                 modifier = Modifier.fillMaxWidth(),
                 trailingIcon = {
-                    TextButton(
-                        onClick = {
-                            // 3. 코드가 비어있지 않으면 '참여하기' 실행!
-                            if (inputCode.isNotBlank()) {
-                                onJoinRoom(inputCode)
-                            }
-                        }
-                    ) {
-                        Text("참여", fontWeight = FontWeight.Bold)
+                    TextButton(onClick = { /* TODO: 코드로 참여 로직 */ }) {
+                        Text("참여")
                     }
-                }
-            )
+                })
         }
     }
 }

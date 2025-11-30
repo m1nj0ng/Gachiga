@@ -67,10 +67,10 @@ fun RoomDetailScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            // --- 초대 코드 섹션 ---
+            // 초대 코드 섹션
             InvitationCodeSection(roomDetail.invitationCode)
 
-            // --- 공통 정보 섹션 (방장만 수정 가능) ---
+            // 공통 정보 섹션 (방장만 수정 가능)
             CommonInfoSection(
                 navController = navController,
                 isHost = isHost,
@@ -79,7 +79,7 @@ fun RoomDetailScreen(
             )
             Divider()
 
-            // --- 멤버 목록 ---
+            // 멤버 목록
             Text("멤버", style = MaterialTheme.typography.titleLarge)
             LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 items(roomDetail.members) { member ->
@@ -100,7 +100,7 @@ fun RoomDetailScreen(
 
             Spacer(modifier = Modifier.weight(1f))
 
-            // --- 방장 전용 계산 버튼 ---
+            // 방장 전용 계산 버튼
             if (isHost) {
                 Button(
                     onClick = { onCalculate() },
@@ -117,7 +117,7 @@ fun RoomDetailScreen(
     }
 }
 
-// --- `RoomDetailScreen`에서만 사용하는 작은 Composable들 ---
+// `RoomDetailScreen`에서만 사용하는 작은 Composable들
 
 @Composable
 private fun InvitationCodeSection(code: String) {
@@ -142,13 +142,9 @@ private fun InvitationCodeSection(code: String) {
             )
             Spacer(modifier = Modifier.width(16.dp))
             IconButton(
-                // ★★★ 2. onClick에 클립보드 복사 로직을 추가합니다. ★★★
                 onClick = {
-                    // 복사할 텍스트로 ClipData를 만듭니다.
                     val clip = ClipData.newPlainText("초대 코드", code)
-                    // 클립보드에 ClipData를 설정합니다.
                     clipboardManager.setPrimaryClip(clip)
-                    // (선택 사항) 사용자에게 복사되었음을 알리는 Toast 메시지
                     Toast.makeText(context, "초대 코드가 복사되었습니다.", Toast.LENGTH_SHORT).show()
                 }
             ) {

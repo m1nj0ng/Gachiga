@@ -125,7 +125,8 @@ private fun RouteListContent(
                 route = route, rank = index + 1,
                 isSelected = (route.id == selectedRouteId),
                 onCardClick = { onRouteSelected(route.id) },
-                onShowDetail = { onRouteSelected(route.id) })
+                onShowDetail = { onShowDetail(route) }
+            )
         }
     }
 }
