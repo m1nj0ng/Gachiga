@@ -40,7 +40,8 @@ fun RoomDetailScreen(
     navController: NavController,
     loggedInUser: User,
     roomDetail: RoomDetail,
-    onStateChange: (RoomDetail) -> Unit
+    onStateChange: (RoomDetail) -> Unit,
+    onMemberUpdate: (RoomMember) -> Unit
 ) {
     val isHost = roomDetail.members.find { it.user.id == loggedInUser.id }?.isHost ?: false
     val allMembersReady = roomDetail.members.all { it.isReady }
@@ -69,7 +70,6 @@ fun RoomDetailScreen(
         ) {
             // --- 초대 코드 섹션 ---
             InvitationCodeSection(roomDetail.invitationCode)
-
             // --- 공통 정보 섹션 (방장만 수정 가능) ---
             CommonInfoSection(
                 navController = navController,
@@ -87,10 +87,7 @@ fun RoomDetailScreen(
                         isSelf = (member.user.id == loggedInUser.id),
                         member = member,
                         onStateChange = { updatedMember ->
-                            val updatedList = roomDetail.members.map {
-                                if (it.user.id == updatedMember.user.id) updatedMember else it
-                            }
-                            onStateChange(roomDetail.copy(members = updatedList))
+                            onMemberUpdate(updatedMember)
                         },
                         navController = navController,
                         roomId = roomDetail.roomId

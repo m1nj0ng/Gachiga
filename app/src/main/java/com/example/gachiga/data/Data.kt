@@ -16,9 +16,9 @@ data class Member(
 )
 
 data class User(
-    val id: String,
-    val nickname: String,
-    val profileImageUrl: String
+    val id: String = "",
+    val nickname: String = "",
+    val profileImageUrl: String = ""
 )
 
 data class Room(
@@ -34,18 +34,27 @@ data class LoggedInState(
 )
 
 data class RoomMember(
-    val user: User,
+    val user: User = User(),
     val startPoint: String = "미설정",
+    val startLat: Double = 0.0,
+    val startLng: Double = 0.0,
     val usePublicTransit: Boolean = true,
     val useCar: Boolean = false,
+
+    @field:JvmField
     val isReady: Boolean = false,
+
+    @field:JvmField
     val isHost: Boolean = false
 )
 
 data class RoomDetail(
     val roomId: String = "TEMP_ID_${System.currentTimeMillis()}", // 임시 고유 ID
+    val roomName: String = "새로운 약속",
     val destination: String = "미설정",
+    val destLat: Double = 0.0, // Latitude (위도, y)
+    val destLng: Double = 0.0, // Longitude (경도, x)
     val arrivalTime: String = "14:00",
     val members: List<RoomMember> = emptyList(),
-    val invitationCode: String = (1..6).map { ('A'..'Z') + ('0'..'9') }.map { it.random() }.joinToString("") // 임시 6자리 코드
+    val invitationCode: String = ""
 )
