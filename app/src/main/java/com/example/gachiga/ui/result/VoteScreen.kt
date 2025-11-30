@@ -1,6 +1,7 @@
 package com.example.gachiga.ui.result
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -8,19 +9,33 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.HowToVote
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.navigation.NavController
+import com.example.gachiga.R
 import com.example.gachiga.data.RoomMember
 import com.example.gachiga.data.SuggestedRoute
 import com.example.gachiga.data.User
+import com.kakao.vectormap.KakaoMap
+import com.kakao.vectormap.KakaoMapReadyCallback
+import com.kakao.vectormap.LatLng
+import com.kakao.vectormap.MapLifeCycleCallback
+import com.kakao.vectormap.MapView
+import com.kakao.vectormap.camera.CameraUpdateFactory
+import com.kakao.vectormap.label.LabelOptions
+import com.kakao.vectormap.label.LabelStyle
+import com.kakao.vectormap.label.LabelStyles
 
 /**
  * 로그인 버전의 투표 화면
@@ -37,23 +52,34 @@ fun VoteScreen(
     onVoteComplete: (userId: String) -> Unit,
     onFinalSelect: (routeId: String) -> Unit
 ) {
+    var selectedRouteForDetail by remember { mutableStateOf<SuggestedRoute?>(null) }
     val me = members.find { it.user.id == loggedInUser.id }
     val allMembersVoted = members.all { it.voted }
     val voteCounts = routes.associate { it.id to it.voters.size }
     val maxVote = if (voteCounts.isNotEmpty()) voteCounts.values.max() else 0
     val topRoutes = routes.filter { (voteCounts[it.id] ?: 0) == maxVote && maxVote > 0 }
+    val isFinalButtonEnabled =
+        maxVote > 0 && (topRoutes.size == 1 || (topRoutes.size > 1 && isHost))
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
                     Text(
-                        if (allMembersVoted) "투표 결과" else "투표하여 중간지점 결정",
+                        if (selectedRouteForDetail == null) "투표하여 중간지점 결정" else "경로 상세 정보",
                         fontWeight = FontWeight.Bold
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = { navController.navigateUp() }) {
+                    IconButton(onClick = {
+                        if (selectedRouteForDetail != null) {
+                            // 지도 화면일 경우 -> 목록화면으로 (상세보기 해제)
+                            selectedRouteForDetail = null
+                        } else {
+                            // 목록 화면일 경우 -> 이전 화면(RoomDetailScreen)으로
+                            navController.navigateUp()
+                        }
+                    }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "뒤로가기")
                     }
                 }
@@ -66,30 +92,28 @@ fun VoteScreen(
                 .padding(paddingValues)
                 .padding(horizontal = 16.dp)
         ) {
-            // 투표 현황
-            VoteStatusSection(members = members)
-            Divider()
-
-            LazyColumn(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                contentPadding = PaddingValues(vertical = 16.dp)
-            ) {
-                itemsIndexed(routes) { index, route ->
-                    VoteCard(
-                        route = route,
-                        rank = index + 1,
-                        isVotedByMe = loggedInUser.id in route.voters,
-                        onVote = { onVote(route.id, loggedInUser.id) },
-                        // 모두가 투표 완료했고, 동점이며, 내가 방장일 때만 최종 선택 버튼을 보여줌
-                        showFinalSelectButton = allMembersVoted && topRoutes.size > 1 && isHost,
-                        onFinalSelect = { onFinalSelect(route.id) },
-                        isTopRoute = route in topRoutes && allMembersVoted,
-                        canVote = !allMembersVoted
+            // 상단 컨텐츠 영역 (목록 또는 지도)
+            Box(modifier = Modifier.weight(1f))
+            {
+                // 선택된 경로에 따라 다른 화면을 보여줌
+                if (selectedRouteForDetail == null) {
+                    // --- 투표 목록 화면 ---
+                    VoteListContent(
+                        members = members,
+                        routes = routes,
+                        loggedInUser = loggedInUser,
+                        allMembersVoted = allMembersVoted,
+                        topRoutes = topRoutes,
+                        isHost = isHost,
+                        onVote = onVote,
+                        onFinalSelect = onFinalSelect,
+                        onShowDetail = { route -> selectedRouteForDetail = route } // 상세 보기 콜백
                     )
+                } else {                    // --- 경로 상세 및 지도 화면 ---
+                    RouteDetailMapContent(route = selectedRouteForDetail!!)
                 }
             }
-            // --- 4. 하단 버튼 영역 ---
+            // 하단 버튼 영역
             if (me != null && !me.voted) {
                 // "투표 완료" 버튼 (아직 투표 완료 안 한 사람에게만 보임)
                 Button(
@@ -101,7 +125,7 @@ fun VoteScreen(
                 ) {
                     Text("투표 완료")
                 }
-            } else if (allMembersVoted && topRoutes.size == 1) {
+            } else if (allMembersVoted && topRoutes.size == 1 && isHost) {
                 // "이 장소로 확정하기" 버튼 (모두 투표 완료했고, 단독 1위일 때)
                 Button(
                     onClick = { onFinalSelect(topRoutes.first().id) },
@@ -117,36 +141,71 @@ fun VoteScreen(
 }
 
 /**
- * 멤버들의 투표 완료 상태를 보여주는 섹션
+ * 투표 목록을 보여주는 Composable
  */
 @Composable
-private fun VoteStatusSection(members: List<RoomMember>) {
-    Column(modifier = Modifier.padding(vertical = 8.dp)) {
-        Text(
-            "투표 현황 (${members.count { it.voted }} / ${members.size})",
-            style = MaterialTheme.typography.titleMedium
-        )
-        Spacer(Modifier.height(8.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            members.forEach { member ->
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.CheckCircle,
-                        contentDescription = "완료",
-                        tint = if (member.voted) Color.Green else Color.Gray,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(Modifier.width(4.dp))
-                    Text(
-                        member.user.nickname,
-                        color = if (member.voted) Color.Unspecified else Color.Gray
-                    )
-                }
+private fun VoteListContent(
+    members: List<RoomMember>,
+    routes: List<SuggestedRoute>,
+    loggedInUser: User,
+    allMembersVoted: Boolean,
+    topRoutes: List<SuggestedRoute>,
+    isHost: Boolean,
+    onVote: (String, String) -> Unit,
+    onFinalSelect: (String) -> Unit,
+    onShowDetail: (SuggestedRoute) -> Unit
+) {
+    Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+        VoteStatusSection(members = members)
+        Divider()
+        LazyColumn(
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            contentPadding = PaddingValues(vertical = 16.dp)
+        ) {
+            itemsIndexed(routes) { index, route ->
+                VoteCard(
+                    route = route,
+                    rank = index + 1,
+                    isVotedByMe = loggedInUser.id in route.voters,
+                    onVote = { onVote(route.id, loggedInUser.id) },
+                    showFinalSelectButton = allMembersVoted && topRoutes.size > 1 && isHost,
+                    onFinalSelect = { onFinalSelect(route.id) },
+                    isTopRoute = route in topRoutes && allMembersVoted,
+                    canVote = !allMembersVoted,
+                    onShowDetail = { onShowDetail(route) }
+                )
             }
         }
     }
 }
 
+/**
+ * 선택된 경로의 상세 정보와 지도를 보여주는 Composable (ResultScreen의 것을 재활용)
+ */
+@Composable
+private fun RouteDetailMapContent(route: SuggestedRoute) {
+    // ... (이전 답변의 RouteDetailContent와 코드가 동일)
+    val position = LatLng.from(route.latitude, route.longitude)
+    AndroidView(
+        factory = { context ->
+            MapView(context).apply {
+                this.start(object : MapLifeCycleCallback() {
+                    override fun onMapDestroy() {}
+                    override fun onMapError(error: Exception) {}
+                }, object : KakaoMapReadyCallback() {
+                    override fun onMapReady(kakaoMap: KakaoMap) {
+                        kakaoMap.moveCamera(CameraUpdateFactory.newCenterPosition(position, 16))
+                        val labelStyles =
+                            kakaoMap.labelManager?.addLabelStyles(LabelStyles.from(LabelStyle.from(R.drawable.ic_map_pin)))
+                        val labelOptions = LabelOptions.from(position).setStyles(labelStyles)
+                        kakaoMap.labelManager?.layer?.addLabel(labelOptions)
+                    }
+                })
+            }
+        },
+        modifier = Modifier.fillMaxSize()
+    )
+}
 
 /**
  * 투표 기능을 포함한 경로 카드
@@ -157,6 +216,7 @@ private fun VoteCard(
     rank: Int,
     isVotedByMe: Boolean,
     onVote: () -> Unit,
+    onShowDetail: () -> Unit,
     showFinalSelectButton: Boolean,
     onFinalSelect: () -> Unit,
     isTopRoute: Boolean,
@@ -202,15 +262,50 @@ private fun VoteCard(
             Divider(modifier = Modifier.padding(vertical = 8.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("예상 총 소요시간: ${route.totalTime}")
-                Text("예상 총 비용: ${route.totalFee}")
+                Text("소요시간: ${route.totalTime}")
+                Text("비용: ${route.totalFee}")
+                IconButton(onClick = onShowDetail) {
+                    Icon(Icons.Default.Search, "지도 보기")
+                }
             }
             if (showFinalSelectButton) {
                 Spacer(Modifier.height(8.dp))
                 Button(onClick = onFinalSelect, modifier = Modifier.align(Alignment.End)) {
                     Text("이걸로 결정")
+                }
+            }
+        }
+    }
+}
+
+/**
+ * 멤버들의 투표 완료 상태를 보여주는 섹션
+ */
+@Composable
+private fun VoteStatusSection(members: List<RoomMember>) {
+    Column(modifier = Modifier.padding(vertical = 8.dp)) {
+        Text(
+            "투표 현황 (${members.count { it.voted }} / ${members.size})",
+            style = MaterialTheme.typography.titleMedium
+        )
+        Spacer(Modifier.height(8.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            members.forEach { member ->
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.CheckCircle,
+                        contentDescription = "완료",
+                        tint = if (member.voted) Color.Green else Color.Gray,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    Text(
+                        member.user.nickname,
+                        color = if (member.voted) Color.Unspecified else Color.Gray
+                    )
                 }
             }
         }

@@ -1,7 +1,6 @@
 package com.example.gachiga.navigation
 
 import android.util.Log
-import androidx.compose.animation.core.copy
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -13,15 +12,12 @@ import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.example.gachiga.data.*
 import com.example.gachiga.ui.input.InputScreen
-import com.example.gachiga.ui.map.MapSelectionScreen
-import com.example.gachiga.ui.start.StartScreen
-import com.example.gachiga.data.LoggedInState
-import com.example.gachiga.data.RoomDetail
-import com.example.gachiga.data.RoomMember
 import com.example.gachiga.ui.lobby.LobbyScreen
+import com.example.gachiga.ui.map.MapSelectionScreen
 import com.example.gachiga.ui.result.ResultScreen
 import com.example.gachiga.ui.result.VoteScreen
 import com.example.gachiga.ui.room.RoomDetailScreen
+import com.example.gachiga.ui.start.StartScreen
 import com.kakao.sdk.user.UserApiClient
 
 // 로그인 관련 경로 제거
@@ -119,9 +115,9 @@ fun GachigaApp(
                         onCalculate = {
                             // 계산 버튼 클릭 시, 가짜 데이터를 생성하여 상태 업데이트
                             val dummyRoutes = listOf(
-                                SuggestedRoute("1", "강남역 2호선", "서울 강남구 강남대로 396", "1시간 12분", "3,200원"),
-                                SuggestedRoute("2", "사당역 2,4호선", "서울 동작구 동작대로 3", "1시간 25분", "2,800원"),
-                                SuggestedRoute("3", "판교역 신분당선", "경기 성남시 분당구 판교역로 160", "1시간 40분", "4,150원")
+                                SuggestedRoute("1", "강남역 2호선", "서울 강남구 강남대로 396", "1시간 12분", "3,200원", 37.4979, 127.0276),
+                                SuggestedRoute("2", "사당역 2,4호선", "서울 동작구 동작대로 3", "1시간 25분", "2,800원", 37.4765, 126.9816),
+                                SuggestedRoute("3", "판교역 신분당선", "경기 성남시 분당구 판교역로 160", "1시간 40분", "4,150원", 37.3948, 127.1112)
                             )
                             roomDetailState = roomDetailState?.copy(suggestedRoutes = dummyRoutes)
                         }
@@ -224,9 +220,9 @@ fun GachigaApp(
             // TODO: 실제 계산 결과를 여기에 전달해야 함
             // 지금은 임시로 만든 가짜 데이터를 사용합니다.
             val dummyRoutes = listOf(
-                SuggestedRoute("1", "강남역 2호선", "서울 강남구 강남대로 396", "1시간 12분", "3,200원"),
-                SuggestedRoute("2", "사당역 2,4호선", "서울 동작구 동작대로 3", "1시간 25분", "2,800원"),
-                SuggestedRoute("3", "판교역 신분당선", "경기 성남시 분당구 판교역로 160", "1시간 40분", "4,150원")
+                SuggestedRoute("1", "강남역 2호선", "서울 강남구 강남대로 396", "1시간 12분", "3,200원", 37.4979, 127.0276),
+                SuggestedRoute("2", "사당역 2,4호선", "서울 동작구 동작대로 3", "1시간 25분", "2,800원", 37.4765, 126.9816),
+                SuggestedRoute("3", "판교역 신분당선", "경기 성남시 분당구 판교역로 160", "1시간 40분", "4,150원", 37.3948, 127.1112)
             )
             ResultScreen(
                 navController = navController,

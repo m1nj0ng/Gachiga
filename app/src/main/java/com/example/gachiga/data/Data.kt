@@ -68,5 +68,7 @@ data class SuggestedRoute(
     val address: String,
     val totalTime: String,
     val totalFee: String,
+    val latitude: Double,
+    val longitude: Double,
     val voters: List<String> = emptyList()
 )
