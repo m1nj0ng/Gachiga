@@ -23,6 +23,18 @@ data class Place(
     @SerializedName("y") val latitude: String  // 위도
 )
 
+data class AddressResponse(
+    val documents: List<AddressDocument>
+)
+
+data class AddressDocument(
+    @SerializedName("address") val address: AddressInfo?,
+    @SerializedName("road_address") val roadAddress: RoadAddressInfo?
+)
+
+data class AddressInfo(@SerializedName("address_name") val addressName: String)
+data class RoadAddressInfo(@SerializedName("address_name") val addressName: String)
+
 // --- Retrofit 인터페이스 정의 ---
 
 interface KakaoApiService {
@@ -30,9 +42,26 @@ interface KakaoApiService {
     @GET("v2/local/search/keyword.json")
     suspend fun searchByKeyword(
         @Header("Authorization") apiKey: String,
-        @Query("query") keyword: String
+        @Query("query") keyword: String,
+        @Query("size") size: Int = 10
     ): KeywordSearchResponse
+
+    @GET("v2/local/search/category.json")
+    suspend fun searchByCategory(
+        @Query("category_group_code") categoryCode: String,
+        @Query("x") x: String,
+        @Query("y") y: String,
+        @Query("radius") radius: Int,
+        @Query("sort") sort: String = "distance"
+    ): KeywordSearchResponse
+
+    @GET("v2/local/geo/coord2address.json")
+    suspend fun coord2address(
+        @Query("x") x: String,
+        @Query("y") y: String
+    ): AddressResponse
 }
+
 
 // --- Retrofit 객체를 생성하는 싱글턴 객체 ---
 

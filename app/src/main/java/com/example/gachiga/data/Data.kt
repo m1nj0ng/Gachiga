@@ -1,15 +1,24 @@
 package com.example.gachiga.data
 
-import com.kakao.vectormap.LatLng
-
 /**
  * 비로그인 버전의 멤버 정보를 담는 데이터 클래스
  */
 data class Member(
+    val id: Int,                // 고유 ID
     val name: String,
     val startPoint: String = "미설정",
-    val usePublicTransit: Boolean = true,
-    val useCar: Boolean = false
+    var x: Double? = null,      // 출발지 경도
+    var y: Double? = null,      // 출발지 위도
+    var placeName: String = "", // 출발지 명칭
+    val color: Int,             // 지도 경로 색상 (ARGB)
+    var mode: TravelMode = TravelMode.CAR, // 이동 수단
+
+    /**
+     * 경로 탐색 옵션
+     * - Car: 0(추천), 1(무료), 2(최소시간) ...
+     * - Transit: 0(최적), 1(최소환승) ...
+     */
+    var searchOption: Int = 0
 )
 
 /**
@@ -18,7 +27,7 @@ data class Member(
 data class GachigaState(
     val destination: String = "미설정",
     val arrivalTime: String = "14:00",
-    val members: List<Member> = listOf(Member(name = "멤버 1")) // 최소 1명으로 시작
+    val members: List<Member> = listOf(Member(id = 1, name = "멤버 1", color = 0)) // 최소 1명으로 시작
 )
 
 data class User(
@@ -42,8 +51,9 @@ data class LoggedInState(
 data class RoomMember(
     val user: User,
     val startPoint: String = "미설정",
-    val usePublicTransit: Boolean = true,
-    val useCar: Boolean = false,
+    var x: Double? = null,
+    var y: Double? = null,
+    val travelMode: TravelMode = TravelMode.CAR,
     val isReady: Boolean = false,
     val voted: Boolean = false,
     val isHost: Boolean = false

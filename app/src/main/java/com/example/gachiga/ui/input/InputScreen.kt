@@ -34,7 +34,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -42,9 +41,6 @@ import androidx.navigation.NavController
 import com.example.gachiga.navigation.AppDestinations
 import com.example.gachiga.data.GachigaState
 import com.example.gachiga.data.Member
-import com.example.gachiga.ui.input.InfoRow
-import com.example.gachiga.ui.input.TimePickerDialog
-import com.example.gachiga.ui.input.TransportButton
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -168,7 +164,7 @@ fun MemberInfoSection(
         ) {
             Text("멤버별 정보", style = MaterialTheme.typography.titleLarge)
             Button(onClick = {
-                val newMember = Member(name = "멤버 ${members.size + 1}")
+                val newMember = Member(id = members.size + 1, name = "멤버 ${members.size + 1}", color = members.size)
                 onStateChange(members + newMember)
             }) {
                 Icon(Icons.Default.Add, contentDescription = "멤버 추가")
@@ -219,8 +215,10 @@ fun MemberCard(
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
-                IconButton(onClick = onRemoveMember) {
-                    Icon(Icons.Default.RemoveCircleOutline, contentDescription = "멤버 삭제")
+                if (memberIndex > 0) {
+                    IconButton(onClick = onRemoveMember) {
+                        Icon(Icons.Default.RemoveCircleOutline, contentDescription = "멤버 삭제")
+                    }
                 }
             }
             InfoRow(icon = Icons.Default.MyLocation, title = "출발지") {
@@ -235,17 +233,28 @@ fun MemberCard(
                     // "대중교통" 버튼
                     TransportButton(
                         text = "대중교통",
-                        isSelected = member.usePublicTransit,
+                        isSelected = member.mode == com.example.gachiga.data.TravelMode.TRANSIT,
                         onClick = {
-                            onMemberChange(member.copy(usePublicTransit = !member.usePublicTransit))
+                            // transport 값을 "대중교통"으로 덮어쓰기
+                            onMemberChange(member.copy(mode = com.example.gachiga.data.TravelMode.TRANSIT))
                         }
                     )
                     // "자차" 버튼
                     TransportButton(
                         text = "자차",
-                        isSelected = member.useCar,
+                        isSelected = member.mode == com.example.gachiga.data.TravelMode.CAR,
                         onClick = {
-                            onMemberChange(member.copy(useCar = !member.useCar))
+                            // transport 값을 "자차"로 덮어쓰기
+                            onMemberChange(member.copy(mode = com.example.gachiga.data.TravelMode.CAR))
+                        }
+                    )
+                    // "도보" 버튼 추가
+                    TransportButton(
+                        text = "도보",
+                        isSelected = member.mode == com.example.gachiga.data.TravelMode.WALK,
+                        onClick = {
+                            // transport 값을 "도보"로 덮어쓰기
+                            onMemberChange(member.copy(mode = com.example.gachiga.data.TravelMode.WALK))
                         }
                     )
                 }

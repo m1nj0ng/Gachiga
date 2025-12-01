@@ -1,13 +1,28 @@
+import java.util.Properties
+import java.io.FileInputStream
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
 }
 
+// local.properties에서 API Key 로드
+val localProps = Properties().apply {
+    val f = File(rootProject.projectDir, "local.properties")
+    if (f.exists()) load(FileInputStream(f))
+}
+val kakaoRestKey: String = localProps.getProperty("KAKAO_REST_API_KEY") ?: ""
+val tmapAppKey: String = localProps.getProperty("TMAP_APP_KEY") ?: ""
+
 android {
     namespace = "com.example.gachiga"
     compileSdk {
         version = release(36)
+    }
+
+    buildFeatures {
+        buildConfig = true
     }
 
     defaultConfig {
@@ -18,6 +33,8 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        buildConfigField("String", "KAKAO_REST_API_KEY", "\"$kakaoRestKey\"")
+        buildConfigField("String", "TMAP_APP_KEY", "\"$tmapAppKey\"")
     }
 
     buildTypes {
@@ -28,6 +45,10 @@ android {
                 "proguard-rules.pro"
             )
         }
+        debug {
+            buildConfigField("String", "TMAP_APP_KEY", "B2HqEFdM069n41jNhfS8u2rSSUboRk3U9akjIP7v")
+            buildConfigField("String", "KAKAO_REST_API_KEY", "d2f438bd7a503391b0e863dd37d394b4")
+        }
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
@@ -35,9 +56,6 @@ android {
     }
     kotlinOptions {
         jvmTarget = "11"
-    }
-    buildFeatures {
-        compose = true
     }
 }
 

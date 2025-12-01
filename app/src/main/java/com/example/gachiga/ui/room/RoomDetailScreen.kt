@@ -252,30 +252,48 @@ private fun MemberStatusCard(
             // 교통수단 설정
             InfoRow(icon = Icons.Default.DirectionsCar, title = "교통수단") {
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    // "대중교통" 버튼
                     TransportButton(
                         text = "대중교통",
-                        isSelected = member.usePublicTransit,
+                        isSelected = member.travelMode == com.example.gachiga.data.TravelMode.TRANSIT,
                         onClick = {
-                            // 본인 카드일 때만 작동
                             if (isSelf) {
-                                // "transport" 필드를 "대중교통"으로 변경하여 콜백 호출
                                 onStateChange(
                                     member.copy(
-                                        usePublicTransit = !member.usePublicTransit,
+                                        travelMode = com.example.gachiga.data.TravelMode.TRANSIT,
                                         isReady = false
                                     )
                                 )
                             }
                         }
                     )
+                    // "자차" 버튼
                     TransportButton(
                         text = "자차",
-                        isSelected = member.useCar,
+                        isSelected = member.travelMode == com.example.gachiga.data.TravelMode.CAR,
                         onClick = {
-                            // 본인 카드일 때만 작동
                             if (isSelf) {
-                                // "transport" 필드를 "자차"으로 변경하여 콜백 호출
-                                onStateChange(member.copy(useCar = !member.useCar, isReady = false))
+                                onStateChange(
+                                    member.copy(
+                                        travelMode = com.example.gachiga.data.TravelMode.CAR,
+                                        isReady = false
+                                    )
+                                )
+                            }
+                        }
+                    )
+                    // "도보" 버튼 추가
+                    TransportButton(
+                        text = "도보",
+                        isSelected = member.travelMode == com.example.gachiga.data.TravelMode.WALK,
+                        onClick = {
+                            if (isSelf) {
+                                onStateChange(
+                                    member.copy(
+                                        travelMode = com.example.gachiga.data.TravelMode.WALK,
+                                        isReady = false
+                                    )
+                                )
                             }
                         }
                     )
