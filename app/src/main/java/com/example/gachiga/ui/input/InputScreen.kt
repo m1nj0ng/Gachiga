@@ -50,6 +50,18 @@ import com.example.gachiga.data.CarRouteOption
 import com.example.gachiga.data.PublicTransitOption
 import com.example.gachiga.data.TravelMode
 
+
+val USER_COLORS = listOf(
+    0xFF1976D2.toInt(), // 파랑
+    0xFFFF9800.toInt(), // 주황
+    0xFF388E3C.toInt(), // 초록
+    0xFF7B1FA2.toInt(), // 보라
+    0xFF0097A7.toInt(), // 청록
+    0xFFC2185B.toInt(), // 자주
+    0xFF5D4037.toInt(), // 갈색
+    0xFFFFC107.toInt()  // 노랑
+)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun InputScreen(
@@ -172,7 +184,14 @@ fun MemberInfoSection(
         ) {
             Text("멤버별 정보", style = MaterialTheme.typography.titleLarge)
             Button(onClick = {
-                val newMember = Member(id = members.size + 1, name = "멤버 ${members.size + 1}", color = members.size)
+                // ★ [수정] 순서에 맞춰 색상을 가져오는 로직 추가
+                val nextColor = USER_COLORS[members.size % USER_COLORS.size]
+
+                val newMember = Member(
+                    id = members.size + 1,
+                    name = "멤버 ${members.size + 1}",
+                    color = nextColor // ★ 진짜 색상 부여
+                )
                 onStateChange(members + newMember)
             }) {
                 Icon(Icons.Default.Add, contentDescription = "멤버 추가")

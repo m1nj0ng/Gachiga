@@ -7,10 +7,11 @@ data class Member(
     val id: Int,
     val name: String,
     val startPoint: String = "미설정",
-    var x: Double? = null,      // 출발지 경도 (기존 유지)
-    var y: Double? = null,      // 출발지 위도 (기존 유지)
-    var placeName: String = "", // 출발지 명칭 (기존 유지 - 로직에서 사용)
-    val color: Int,
+    var x: Double? = null,
+    var y: Double? = null,
+    var placeName: String = "",
+    // ★ [수정] 0 대신 확실한 색상값(파란색)을 기본값으로 지정
+    val color: Int = -16776961, // Color.BLUE (0xFF0000FF)
     var mode: TravelMode = TravelMode.CAR,
     var carOption: CarRouteOption = CarRouteOption.RECOMMEND,
     var publicTransitOption: PublicTransitOption = PublicTransitOption.OPTIMAL,
@@ -23,13 +24,11 @@ data class Member(
  */
 data class GachigaState(
     val destination: String = "미설정",
-
-    // ★ [추가됨] 로직 계산을 위한 목적지 좌표
-    var destX: Double? = null, // 경도 (Longitude)
-    var destY: Double? = null, // 위도 (Latitude)
-
+    var destX: Double? = null,
+    var destY: Double? = null,
     val arrivalTime: String = "14:00",
-    val members: List<Member> = listOf(Member(id = 1, name = "멤버 1", color = 0))
+    // ★ [수정] 기본 멤버의 색상도 명시적으로 지정하거나 위 기본값 사용
+    val members: List<Member> = listOf(Member(id = 1, name = "나", color = -16776961))
 )
 
 data class User(
