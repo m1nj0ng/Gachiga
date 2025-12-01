@@ -1,6 +1,7 @@
 package com.example.gachiga.ui.input
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,15 +18,19 @@ import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.filled.RemoveCircleOutline
 import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.Divider
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -41,6 +46,9 @@ import androidx.navigation.NavController
 import com.example.gachiga.navigation.AppDestinations
 import com.example.gachiga.data.GachigaState
 import com.example.gachiga.data.Member
+import com.example.gachiga.data.CarRouteOption
+import com.example.gachiga.data.PublicTransitOption
+import com.example.gachiga.data.TravelMode
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -200,6 +208,9 @@ fun MemberCard(
     onMemberChange: (Member) -> Unit,
     onRemoveMember: () -> Unit
 ) {
+    var carOptionMenuExpanded by remember { mutableStateOf(false) }
+    var publicOptionMenuExpanded by remember { mutableStateOf(false) }
+
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier.padding(16.dp),
@@ -230,33 +241,77 @@ fun MemberCard(
             }
             InfoRow(icon = Icons.Default.DirectionsCar, title = "교통수단") {
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    // "대중교통" 버튼
                     TransportButton(
                         text = "대중교통",
-                        isSelected = member.mode == com.example.gachiga.data.TravelMode.TRANSIT,
-                        onClick = {
-                            // transport 값을 "대중교통"으로 덮어쓰기
-                            onMemberChange(member.copy(mode = com.example.gachiga.data.TravelMode.TRANSIT))
-                        }
+                        isSelected = member.mode == TravelMode.TRANSIT,
+                        onClick = { onMemberChange(member.copy(mode = TravelMode.TRANSIT)) }
                     )
-                    // "자차" 버튼
                     TransportButton(
                         text = "자차",
-                        isSelected = member.mode == com.example.gachiga.data.TravelMode.CAR,
-                        onClick = {
-                            // transport 값을 "자차"로 덮어쓰기
-                            onMemberChange(member.copy(mode = com.example.gachiga.data.TravelMode.CAR))
-                        }
+                        isSelected = member.mode == TravelMode.CAR,
+                        onClick = { onMemberChange(member.copy(mode = TravelMode.CAR)) }
                     )
-                    // "도보" 버튼 추가
                     TransportButton(
                         text = "도보",
-                        isSelected = member.mode == com.example.gachiga.data.TravelMode.WALK,
-                        onClick = {
-                            // transport 값을 "도보"로 덮어쓰기
-                            onMemberChange(member.copy(mode = com.example.gachiga.data.TravelMode.WALK))
-                        }
+                        isSelected = member.mode == TravelMode.WALK,
+                        onClick = { onMemberChange(member.copy(mode = TravelMode.WALK)) }
                     )
+                }
+            }
+
+            // ★★★ 세부 경로 옵션 드롭다운 메뉴 추가 ★★★
+            // 선택된 교통수단에 따라 다른 UI를 보여줌
+            when (member.mode) {
+                TravelMode.CAR -> {
+                    // --- 자차 옵션 ---
+                    InfoRow(icon = Icons.Default.Tune, title = "경로 옵션") {
+                        Box {
+                            TextButton(onClick = { carOptionMenuExpanded = true }) {
+                                Text(member.carOption.displayName)
+                            }
+                            DropdownMenu(
+                                expanded = carOptionMenuExpanded,
+                                onDismissRequest = { carOptionMenuExpanded = false }
+                            ) {
+                                CarRouteOption.values().forEach { option ->
+                                    DropdownMenuItem(
+                                        text = { Text(option.displayName) },
+                                        onClick = {
+                                            onMemberChange(member.copy(carOption = option))
+                                            carOptionMenuExpanded = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+                TravelMode.TRANSIT -> {
+                    // --- 대중교통 옵션 ---
+                    InfoRow(icon = Icons.Default.Tune, title = "경로 옵션") {
+                        Box {
+                            TextButton(onClick = { publicOptionMenuExpanded = true }) {
+                                Text(member.publicTransitOption.displayName)
+                            }
+                            DropdownMenu(
+                                expanded = publicOptionMenuExpanded,
+                                onDismissRequest = { publicOptionMenuExpanded = false }
+                            ) {
+                                PublicTransitOption.values().forEach { option ->
+                                    DropdownMenuItem(
+                                        text = { Text(option.displayName) },
+                                        onClick = {
+                                            onMemberChange(member.copy(publicTransitOption = option))
+                                            publicOptionMenuExpanded = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+                TravelMode.WALK -> {
+                    // 도보일 때는 아무것도 보여주지 않음
                 }
             }
         }

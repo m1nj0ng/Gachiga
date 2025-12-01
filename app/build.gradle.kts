@@ -46,8 +46,8 @@ android {
             )
         }
         debug {
-            buildConfigField("String", "TMAP_APP_KEY", "B2HqEFdM069n41jNhfS8u2rSSUboRk3U9akjIP7v")
-            buildConfigField("String", "KAKAO_REST_API_KEY", "d2f438bd7a503391b0e863dd37d394b4")
+            buildConfigField("String", "TMAP_APP_KEY", "\"B2HqEFdM069n41jNhfS8u2rSSUboRk3U9akjIP7v\"")
+            buildConfigField("String", "KAKAO_REST_API_KEY", "\"dc21e4ca0f1c295746afc0ac8b4789cc\"")
         }
     }
     compileOptions {

@@ -12,6 +12,8 @@ data class Member(
     var placeName: String = "", // 출발지 명칭
     val color: Int,             // 지도 경로 색상 (ARGB)
     var mode: TravelMode = TravelMode.CAR, // 이동 수단
+    var carOption: CarRouteOption = CarRouteOption.RECOMMEND,
+    var publicTransitOption: PublicTransitOption = PublicTransitOption.OPTIMAL,
 
     /**
      * 경로 탐색 옵션
@@ -82,3 +84,19 @@ data class SuggestedRoute(
     val longitude: Double,
     val voters: List<String> = emptyList()
 )
+
+// 자차 경로 옵션을 정의하는 Enum 클래스 추가
+enum class CarRouteOption(val displayName: String) {
+    RECOMMEND("추천 경로"),
+    SHORTEST("최단 거리"),
+    FASTEST("최소 시간"),
+    FREE("무료 우선")
+}
+
+//대중교통 경로 옵션을 정의하는 Enum 클래스 추가
+enum class PublicTransitOption(val displayName: String) {
+    OPTIMAL("최적 경로"),
+    LEAST_TRANSFER("최소 환승"),
+    FASTEST("최소 시간"),
+    LEAST_WALKING("최소 도보")
+}
