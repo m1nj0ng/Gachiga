@@ -4,32 +4,32 @@ package com.example.gachiga.data
  * 비로그인 버전의 멤버 정보를 담는 데이터 클래스
  */
 data class Member(
-    val id: Int,                // 고유 ID
+    val id: Int,
     val name: String,
     val startPoint: String = "미설정",
-    var x: Double? = null,      // 출발지 경도
-    var y: Double? = null,      // 출발지 위도
-    var placeName: String = "", // 출발지 명칭
-    val color: Int,             // 지도 경로 색상 (ARGB)
-    var mode: TravelMode = TravelMode.CAR, // 이동 수단
+    var x: Double? = null,      // 출발지 경도 (기존 유지)
+    var y: Double? = null,      // 출발지 위도 (기존 유지)
+    var placeName: String = "", // 출발지 명칭 (기존 유지 - 로직에서 사용)
+    val color: Int,
+    var mode: TravelMode = TravelMode.CAR,
     var carOption: CarRouteOption = CarRouteOption.RECOMMEND,
     var publicTransitOption: PublicTransitOption = PublicTransitOption.OPTIMAL,
-
-    /**
-     * 경로 탐색 옵션
-     * - Car: 0(추천), 1(무료), 2(최소시간) ...
-     * - Transit: 0(최적), 1(최소환승) ...
-     */
     var searchOption: Int = 0
 )
 
 /**
  * 비로그인 버전의 약속 정보를 관리하는 데이터 클래스
+ * [수정 사항] 목적지 좌표(destX, destY) 필드 추가
  */
 data class GachigaState(
     val destination: String = "미설정",
+
+    // ★ [추가됨] 로직 계산을 위한 목적지 좌표
+    var destX: Double? = null, // 경도 (Longitude)
+    var destY: Double? = null, // 위도 (Latitude)
+
     val arrivalTime: String = "14:00",
-    val members: List<Member> = listOf(Member(id = 1, name = "멤버 1", color = 0)) // 최소 1명으로 시작
+    val members: List<Member> = listOf(Member(id = 1, name = "멤버 1", color = 0))
 )
 
 data class User(
@@ -41,20 +41,20 @@ data class User(
 data class Room(
     val roomId: String,
     val roomName: String,
-    val host: User, // 방장 정보
-    val members: List<User> // 참여 멤버 목록
+    val host: User,
+    val members: List<User>
 )
 
 data class LoggedInState(
-    val currentUser: User? = null, // 현재 로그인한 사용자
-    val joinedRooms: List<Room> = emptyList() //참여 중인 방 목록
+    val currentUser: User? = null,
+    val joinedRooms: List<Room> = emptyList()
 )
 
 data class RoomMember(
     val user: User,
     val startPoint: String = "미설정",
-    var x: Double? = null,
-    var y: Double? = null,
+    var x: Double? = null,      // 출발지 경도 (기존 유지)
+    var y: Double? = null,      // 출발지 위도 (기존 유지)
     val travelMode: TravelMode = TravelMode.CAR,
     val isReady: Boolean = false,
     val voted: Boolean = false,
@@ -62,17 +62,22 @@ data class RoomMember(
 )
 
 data class RoomDetail(
-    val roomId: String = "TEMP_ID_${System.currentTimeMillis()}", // 임시 고유 ID
+    val roomId: String = "TEMP_ID_${System.currentTimeMillis()}",
     val destination: String = "미설정",
+
+    // ★ [추가됨] 로그인 버전도 목적지 좌표가 필요합니다.
+    var destX: Double? = null, // 경도
+    var destY: Double? = null, // 위도
+
     val arrivalTime: String = "14:00",
     val members: List<RoomMember> = emptyList(),
-    val invitationCode: String = (1..6).map { ('A'..'Z') + ('0'..'9') }.map { it.random() }.joinToString(""), // 임시 6자리 코드
-    val suggestedRoutes: List<SuggestedRoute> = emptyList(), // 추천 경로 목록 필드 추가
-    val finalPlace: String? = null // 최종 결정된 장소 (선택 사항)
+    val invitationCode: String = (1..6).map { ('A'..'Z') + ('0'..'9') }.map { it.random() }.joinToString(""),
+    val suggestedRoutes: List<SuggestedRoute> = emptyList(),
+    val finalPlace: String? = null
 )
 
 /**
- * 추천 경로 한 개에 대한 정보 (비로그인/로그인 공용)
+ * 추천 경로 한 개에 대한 정보
  */
 data class SuggestedRoute(
     val id: String,
@@ -85,7 +90,6 @@ data class SuggestedRoute(
     val voters: List<String> = emptyList()
 )
 
-// 자차 경로 옵션을 정의하는 Enum 클래스 추가
 enum class CarRouteOption(val displayName: String) {
     RECOMMEND("추천 경로"),
     SHORTEST("최단 거리"),
@@ -93,7 +97,6 @@ enum class CarRouteOption(val displayName: String) {
     FREE("무료 우선")
 }
 
-//대중교통 경로 옵션을 정의하는 Enum 클래스 추가
 enum class PublicTransitOption(val displayName: String) {
     OPTIMAL("최적 경로"),
     LEAST_TRANSFER("최소 환승"),

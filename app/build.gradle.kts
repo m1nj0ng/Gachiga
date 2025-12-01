@@ -17,9 +17,7 @@ val tmapAppKey: String = localProps.getProperty("TMAP_APP_KEY") ?: ""
 
 android {
     namespace = "com.example.gachiga"
-    compileSdk {
-        version = release(36)
-    }
+    compileSdk = 36
 
     buildFeatures {
         buildConfig = true
@@ -44,10 +42,6 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-        }
-        debug {
-            buildConfigField("String", "TMAP_APP_KEY", "\"B2HqEFdM069n41jNhfS8u2rSSUboRk3U9akjIP7v\"")
-            buildConfigField("String", "KAKAO_REST_API_KEY", "\"dc21e4ca0f1c295746afc0ac8b4789cc\"")
         }
     }
     compileOptions {
