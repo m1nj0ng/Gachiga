@@ -3,6 +3,7 @@ package com.example.gachiga
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -19,6 +20,17 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         WindowCompat.setDecorFitsSystemWindows(window, false)
+
+        // 딥링크에서 roomId 추출
+        val deepLinkRoomId = intent?.data?.let { uri ->
+            // 예: https://gachiga.app/join?roomId=ABC123
+            if (uri.host == "gachiga.app" && uri.path == "/join") {
+                uri.getQueryParameter("roomId")
+            } else {
+                null
+            }
+        }
+
         setContent {
             GachigaTheme {
                 val navController = rememberNavController()
@@ -27,6 +39,13 @@ class MainActivity : ComponentActivity() {
 
                 // ★ [추가] 로직 수행을 위한 저장소 생성 (싱글톤처럼 사용)
                 val repository = remember { RouteRepository() }
+
+                // ✅ 딥링크로 들어온 경우: 로그인 되어 있다면 방으로 바로 이동
+                LaunchedEffect(deepLinkRoomId, loggedInState.currentUser) {
+                    if (!deepLinkRoomId.isNullOrBlank() && loggedInState.currentUser != null) {
+                        navController.navigate("room_detail/$deepLinkRoomId")
+                    }
+                }
 
                 GachigaApp(
                     navController = navController,
@@ -38,5 +57,9 @@ class MainActivity : ComponentActivity() {
                 )
             }
         }
+    }
+    override fun onNewIntent(intent: android.content.Intent?) {
+        super.onNewIntent(intent)
+        setIntent(intent)
     }
 }

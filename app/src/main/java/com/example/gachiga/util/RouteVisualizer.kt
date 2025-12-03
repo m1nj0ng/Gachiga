@@ -7,124 +7,171 @@ import com.kakao.vectormap.shape.MapPoints
 import com.kakao.vectormap.shape.Polyline
 import com.kakao.vectormap.shape.PolylineOptions
 import com.kakao.vectormap.shape.ShapeLayerOptions
+import com.kakao.vectormap.shape.ShapeManager
 import com.example.gachiga.data.TransitPathSegment
 
 /**
  * [지도 시각화 담당 (Painter)]
- * - 역할: KakaoMap 객체를 직접 제어하여 선(Polyline)을 그리고, 지우고, 카메라를 이동합니다.
- * - 특징: 비즈니스 로직(계산)은 전혀 모르며, LogicManager가 "이 좌표를 빨간색으로 그려"라고 시키면 수행만 합니다.
+ * - 역할: 모든 경로를 '테두리(Border) + 심지(Core)' 형태의 이중선으로 통일감 있게 그립니다.
  */
 class RouteVisualizer(private val kakaoMap: KakaoMap) {
 
-    // 기본 경로를 그리는 레이어 (파란색, 초록색 등)
-    private val routeLayer = kakaoMap.shapeManager?.addLayer(ShapeLayerOptions.from("tmap_routes"))
+    // ========================================================================
+    // [상수 정의] 두께 및 색상 (여기를 조정하면 전체 경로 스타일이 바뀝니다)
+    // ========================================================================
+    companion object {
+        // 일반 경로 두께
+        private const val STD_BORDER_WIDTH = 15f
+        private const val STD_CORE_WIDTH = 9f
 
-    // 그려진 선 객체들을 관리하는 리스트 (나중에 clear() 할 때 사용)
+        // 자동차/도보용 강조 두께 (합류 시)
+        private const val EMPHASIS_BORDER_WIDTH = 15f
+        private const val EMPHASIS_CORE_WIDTH = 9f
+
+        private val COLOR_GRAY_BORDER = Color.parseColor("#AAAAAA")
+        private val COLOR_RED_BORDER = Color.parseColor("#CC0000") // 진한 빨강
+        private val COLOR_RED_CORE = Color.RED                     // 밝은 빨강
+        private val COLOR_DEFAULT_TRANSIT = Color.parseColor("#888888")
+    }
+
+    private val shapeManager: ShapeManager? = kakaoMap.shapeManager
+    // 기본 경로 레이어 (파랑, 초록 등)
+    private val routeLayer = shapeManager?.addLayer(ShapeLayerOptions.from("tmap_routes"))
+    // 합류 강조 레이어 (빨간선 - 항상 가장 위에 그려짐)
+    private val overlapLayer = shapeManager?.getLayer("overlaps") ?: shapeManager?.addLayer(ShapeLayerOptions.from("overlaps"))
+
+    // 그려진 선 객체 관리 (clear용)
     private val currentPolylines = mutableListOf<Polyline>()
 
-    /**
-     * [초기화] 지도 위에 그려진 모든 선을 지웁니다.
-     * 새로운 경로 계산 시 화면을 깨끗하게 비우기 위해 호출됩니다.
-     */
+    /** [초기화] 지도 깨끗이 비우기 */
     fun clear() {
         currentPolylines.forEach { it.remove() }
         currentPolylines.clear()
-        // 'overlaps' 레이어(빨간 합류선)도 함께 제거
-        kakaoMap.shapeManager?.getLayer("overlaps")?.removeAll()
+        overlapLayer?.removeAll()
     }
 
     /**
-     * [기본 선 그리기]
-     * 자동차, 도보, 혹은 합류 전의 일반 경로를 단색으로 그립니다.
+     * [기본 선 그리기 (자동차/도보)]
+     * ★ 변경점: 단일선이 아닌 '회색 테두리 + 사용자 색 심지'의 이중선으로 그립니다.
      */
-    fun drawPolyline(points: List<LatLng>, color: Int) {
-        if (points.isEmpty()) return
-        val opts = PolylineOptions.from(MapPoints.fromLatLng(points), 12f, color)
-        routeLayer?.addPolyline(opts)?.let { currentPolylines.add(it) }
+    fun drawPolyline(points: List<LatLng>, userColor: Int) {
+        drawDualLayerPolyline(
+            points = points,
+            borderColor = COLOR_GRAY_BORDER, // 테두리는 통일된 회색
+            coreColor = userColor,           // 심지는 사용자 고유 색
+            borderWidth = STD_BORDER_WIDTH,
+            coreWidth = STD_CORE_WIDTH,
+            targetLayer = routeLayer
+        )
     }
 
     /**
-     * [합류 구간 강조]
-     * 합류 지점부터 목적지까지의 경로를 '빨간색 굵은 선'으로 덧칠(Overlay)합니다.
-     * 별도의 'overlaps' 레이어를 사용하여 기존 선 위에 덮어씌웁니다.
+     * [합류 구간 강조 (빨간선)]
+     * ★ 변경점: '진한 빨강 테두리 + 밝은 빨강 심지'의 두꺼운 이중선으로 그립니다.
      */
-    fun drawRedLine(points: List<LatLng>) {
-        if (points.isEmpty()) return
-        val sm = kakaoMap.shapeManager ?: return
-        val layer = sm.getLayer("overlaps") ?: sm.addLayer(ShapeLayerOptions.from("overlaps"))
-
-        // 두께 12f, 빨간색 (ARGB)
-        val opts = PolylineOptions.from(MapPoints.fromLatLng(points), 12f, 0xFFFF0000.toInt())
-        layer.addPolyline(opts)
-    }
-
     /**
-     * [대중교통 경로 자르기 & 색상 복원]
-     * 대중교통 경로는 구간(Segment)마다 색상(2호선, 9호선 등)이 다릅니다.
-     * 이를 살리면서 합류 지점까지만 잘라서 그리는 복합적인 로직입니다.
-     *
-     * @param segments 대중교통 상세 구간 리스트
-     * @param cutLimitTotalIndex 합류 지점까지의 누적 인덱스 (여기까지만 그림)
-     * @param userColor 사용자 고유 색상 (심지 색상)
+     * [합류 구간 강조 (빨간선)]
+     * ★ 수정됨: isTransitLeader 파라미터 추가
+     * - True(대중교통): 테두리 없이 심지만 빨갛게 -> 기존 노선색 테두리가 보임
+     * - False(자차/도보): 빨간 테두리 + 빨간 심지 -> 굵은 빨간선
      */
-    fun drawTransitRouteCut(segments: List<TransitPathSegment>, cutLimitTotalIndex: Int, userColor: Int) {
-        var currentIndex = 0
-
-        for (seg in segments) {
-            val segSize = seg.points.size
-            if (segSize == 0) continue
-
-            if (currentIndex + segSize <= cutLimitTotalIndex) {
-                // [Case 1] 이 구간은 온전히 그려야 함
-                drawDualColorPolyline(seg.points, seg.color, userColor)
-                currentIndex += segSize
-            } else if (currentIndex < cutLimitTotalIndex) {
-                // [Case 2] 이 구간 중간에서 잘라야 함 (합류 지점 포함 구간)
-                val takeCount = cutLimitTotalIndex - currentIndex
-                val partialPoints = seg.points.take(takeCount + 1)
-                drawDualColorPolyline(partialPoints, seg.color, userColor)
-                break // 이후 구간은 그리지 않음
-            } else {
-                // [Case 3] 이미 합류 지점을 지난 구간 (Skip)
-                break
-            }
+    fun drawRedLine(points: List<LatLng>, isTransitLeader: Boolean) {
+        if (isTransitLeader) {
+            // [대중교통 대장] 테두리 안 그림 (밑에 깔린 노선색 유지), 심지는 표준 두께
+            drawDualLayerPolyline(
+                points = points,
+                borderColor = Color.TRANSPARENT, // 투명 테두리 (사실상 안 그림)
+                coreColor = COLOR_RED_CORE,
+                borderWidth = 0f,
+                coreWidth = STD_CORE_WIDTH, // 9f (기존 심지와 동일 두께)
+                targetLayer = overlapLayer
+            )
+        } else {
+            // [자동차/도보 대장] 빨간 테두리 + 빨간 심지 (강조 두께)
+            drawDualLayerPolyline(
+                points = points,
+                borderColor = COLOR_RED_BORDER,
+                coreColor = COLOR_RED_CORE,
+                borderWidth = EMPHASIS_BORDER_WIDTH,
+                coreWidth = EMPHASIS_CORE_WIDTH,
+                targetLayer = overlapLayer
+            )
         }
     }
 
     /**
-     * [카메라 자동 이동]
-     * 모든 경로 포인트가 화면에 들어오도록 줌 레벨과 위치를 자동 조정합니다.
-     * padding(80)을 주어 경로가 화면 가장자리에 잘리지 않게 합니다.
+     * [대중교통 경로 자르기 & 그리기]
+     * 기존 로직 유지. 단, 내부에서 호출하는 drawDualColorPolyline이 표준 두께를 사용하도록 수정됨.
      */
+    fun drawTransitRouteCut(segments: List<TransitPathSegment>, cutLimitTotalIndex: Int, userColor: Int) {
+        var currentIndex = 0
+        for (seg in segments) {
+            val segSize = seg.points.size
+            if (segSize == 0) continue
+
+            val pointsToDraw = if (currentIndex + segSize <= cutLimitTotalIndex) {
+                seg.points // 전체 구간
+            } else if (currentIndex < cutLimitTotalIndex) {
+                seg.points.take(cutLimitTotalIndex - currentIndex + 1) // 잘린 구간
+            } else {
+                null // 안 그리는 구간
+            }
+
+            if (pointsToDraw != null) {
+                drawDualLayerPolyline(
+                    points = pointsToDraw,
+                    borderColor = parseColorSafe(seg.color), // 노선 고유 색상
+                    coreColor = userColor,
+                    borderWidth = STD_BORDER_WIDTH,
+                    coreWidth = STD_CORE_WIDTH,
+                    targetLayer = routeLayer
+                )
+            }
+
+            if (currentIndex + segSize >= cutLimitTotalIndex) break
+            currentIndex += segSize
+        }
+    }
+
+    /** [카메라 이동] */
     fun moveCameraToFit(points: List<LatLng>) {
         if (points.isEmpty()) return
-        val cameraUpdate = com.kakao.vectormap.camera.CameraUpdateFactory.fitMapPoints(points.toTypedArray(), 80)
+        val cameraUpdate = com.kakao.vectormap.camera.CameraUpdateFactory.fitMapPoints(points.toTypedArray(), 100) // padding 약간 증가
         kakaoMap.moveCamera(cameraUpdate)
     }
 
+    // ========================================================================
+    // [내부 헬퍼 함수] 실제 이중선을 그리는 핵심 로직
+    // ========================================================================
+
     /**
-     * [Helper] 이중 색상 선 그리기 (테두리 + 심지)
-     * 대중교통 노선색(테두리) 위에 사용자색(심지)을 얹어서,
-     * "2호선을 타고 가는 사용자 A"임을 시각적으로 표현합니다.
+     * [핵심] 이중 선(Dual Layer Polyline) 그리기 공통 함수
+     * 두꺼운 테두리 선을 먼저 그리고, 그 위에 얇은 심지 선을 덧그립니다.
      */
-    private fun drawDualColorPolyline(points: List<LatLng>, transitColorStr: String?, userColor: Int) {
-        if (points.isEmpty()) return
-        val transitColor = parseColorSafe(transitColorStr)
+    private fun drawDualLayerPolyline(
+        points: List<LatLng>,
+        borderColor: Int,
+        coreColor: Int,
+        borderWidth: Float,
+        coreWidth: Float,
+        targetLayer: com.kakao.vectormap.shape.ShapeLayer?
+    ) {
+        if (points.isEmpty() || targetLayer == null) return
 
-        // 1. 테두리 (노선색, 20f)
-        val optsBorder = PolylineOptions.from(MapPoints.fromLatLng(points), 20f, transitColor)
-        routeLayer?.addPolyline(optsBorder)?.let { currentPolylines.add(it) }
+        // 1. 테두리 그리기 (두껍게)
+        val optsBorder = PolylineOptions.from(MapPoints.fromLatLng(points), borderWidth, borderColor)
+        targetLayer.addPolyline(optsBorder)?.let { if (targetLayer == routeLayer) currentPolylines.add(it) }
 
-        // 2. 심지 (유저색, 12f)
-        val optsCore = PolylineOptions.from(MapPoints.fromLatLng(points), 12f, userColor)
-        routeLayer?.addPolyline(optsCore)?.let { currentPolylines.add(it) }
+        // 2. 심지 그리기 (얇게)
+        val optsCore = PolylineOptions.from(MapPoints.fromLatLng(points), coreWidth, coreColor)
+        targetLayer.addPolyline(optsCore)?.let { if (targetLayer == routeLayer) currentPolylines.add(it) }
     }
 
-    // 색상 문자열 파싱 (실패 시 기본 회색)
+    // 색상 문자열 파싱 안전 장치
     private fun parseColorSafe(colorStr: String?): Int {
         return try {
-            val c = colorStr ?: "#888888"
+            val c = colorStr?.trim() ?: return COLOR_DEFAULT_TRANSIT
             Color.parseColor(if (c.startsWith("#")) c else "#$c")
-        } catch (e: Exception) { 0xFF888888.toInt() }
+        } catch (e: Exception) { COLOR_DEFAULT_TRANSIT }
     }
 }

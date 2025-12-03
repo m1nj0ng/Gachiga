@@ -12,8 +12,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.DirectionsWalk
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.DirectionsBus
 import androidx.compose.material.icons.filled.DirectionsCar
+import androidx.compose.material.icons.filled.DirectionsTransit
+import androidx.compose.material.icons.filled.DirectionsWalk
+import androidx.compose.material.icons.filled.DriveEta
 import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.filled.RemoveCircleOutline
@@ -258,31 +263,36 @@ fun MemberCard(
                     Text(member.startPoint)
                 }
             }
-            InfoRow(icon = Icons.Default.DirectionsCar, title = "교통수단") {
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            InfoRow(icon = Icons.Default.DirectionsBus, title = "교통수단") {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+
                     TransportButton(
-                        text = "대중교통",
+                        icon = Icons.Default.DirectionsTransit,
+                        contentDescription = "대중교통",
                         isSelected = member.mode == TravelMode.TRANSIT,
                         onClick = { onMemberChange(member.copy(mode = TravelMode.TRANSIT)) }
                     )
+
                     TransportButton(
-                        text = "자차",
+                        icon = Icons.Default.DirectionsCar,
+                        contentDescription = "자동차",
                         isSelected = member.mode == TravelMode.CAR,
                         onClick = { onMemberChange(member.copy(mode = TravelMode.CAR)) }
                     )
+
                     TransportButton(
-                        text = "도보",
+                        icon = Icons.Default.DirectionsWalk,
+                        contentDescription = "도보",
                         isSelected = member.mode == TravelMode.WALK,
                         onClick = { onMemberChange(member.copy(mode = TravelMode.WALK)) }
                     )
                 }
             }
 
-            // ★★★ 세부 경로 옵션 드롭다운 메뉴 추가 ★★★
-            // 선택된 교통수단에 따라 다른 UI를 보여줌
+            // ★★★ [수정] 옵션 선택 시 searchOption(숫자)도 함께 업데이트하는 로직 추가 ★★★
             when (member.mode) {
                 TravelMode.CAR -> {
-                    // --- 자차 옵션 ---
+                    // --- 자동차 옵션 ---
                     InfoRow(icon = Icons.Default.Tune, title = "경로 옵션") {
                         Box {
                             TextButton(onClick = { carOptionMenuExpanded = true }) {
@@ -296,7 +306,16 @@ fun MemberCard(
                                     DropdownMenuItem(
                                         text = { Text(option.displayName) },
                                         onClick = {
-                                            onMemberChange(member.copy(carOption = option))
+                                            // ★ TMAP 자동차 옵션 매핑
+                                            // 0:추천, 1:무료, 2:최소시간, 10:최단거리
+                                            val code = when(option) {
+                                                CarRouteOption.RECOMMEND -> 0
+                                                CarRouteOption.FREE -> 1
+                                                CarRouteOption.FASTEST -> 2
+                                                CarRouteOption.SHORTEST -> 10
+                                            }
+                                            // Enum과 Int를 동시에 업데이트
+                                            onMemberChange(member.copy(carOption = option, searchOption = code))
                                             carOptionMenuExpanded = false
                                         }
                                     )
@@ -320,7 +339,16 @@ fun MemberCard(
                                     DropdownMenuItem(
                                         text = { Text(option.displayName) },
                                         onClick = {
-                                            onMemberChange(member.copy(publicTransitOption = option))
+                                            // ★ TMAP 대중교통 옵션 매핑
+                                            // 0:최적, 1:최소환승, 2:최소시간, 3:최소도보
+                                            val code = when(option) {
+                                                PublicTransitOption.OPTIMAL -> 0
+                                                PublicTransitOption.LEAST_TRANSFER -> 1
+                                                PublicTransitOption.FASTEST -> 2
+                                                PublicTransitOption.LEAST_WALKING -> 3
+                                            }
+                                            // Enum과 Int를 동시에 업데이트
+                                            onMemberChange(member.copy(publicTransitOption = option, searchOption = code))
                                             publicOptionMenuExpanded = false
                                         }
                                     )
@@ -330,7 +358,7 @@ fun MemberCard(
                     }
                 }
                 TravelMode.WALK -> {
-                    // 도보일 때는 아무것도 보여주지 않음
+                    // 도보일 때는 옵션 없음
                 }
             }
         }

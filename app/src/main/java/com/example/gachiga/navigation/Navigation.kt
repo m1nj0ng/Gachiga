@@ -92,15 +92,16 @@ fun GachigaApp(
                     if (currentUser != null) {
                         createRoomInFirestore(
                             hostUser = currentUser,
-                            onSuccess = { createdRoomId ->
+                            onSuccess = { createdRoomId, inviteLink ->
                                 if (createdRoomId.isNotBlank()) {
                                     Log.d("Navigation", "방 생성 성공! ID: $createdRoomId")
-                                    
+
                                     val hostMember = RoomMember(user = currentUser, isHost = true)
                                     roomDetailState = newRoom.copy(
                                         roomId = createdRoomId,
                                         invitationCode = createdRoomId,
-                                        members = listOf(hostMember)
+                                        inviteLink = inviteLink,
+                                        members = listOf(hostMember),
                                     )
 
                                     navController.navigate("room_detail/$createdRoomId")
@@ -170,7 +171,10 @@ fun GachigaApp(
                                                 y = roomMember.y, // y (위도)
                                                 placeName = roomMember.startPoint,
                                                 mode = roomMember.travelMode,
-                                                color = -16776961
+                                                color = -16776961,
+                                                carOption = roomMember.carOption,
+                                                publicTransitOption = roomMember.publicTransitOption,
+                                                searchOption = roomMember.searchOption
                                             )
                                         }
 
@@ -404,12 +408,14 @@ private fun signInToFirebaseWithCustomToken(firebaseToken: String, onSuccess: (c
 // 3. 방 생성 함수 (랜덤 코드 생성 포함)
 fun createRoomInFirestore(
     hostUser: User,
-    onSuccess: (String) -> Unit,
+    onSuccess: (String, String) -> Unit,
     onFailure: (Exception) -> Unit
 ) {
     val db = Firebase.firestore
     // 6자리 랜덤 코드 생성
     val newRoomId = (1..6).map { ('A'..'Z') + ('0'..'9') }.map { it.random() }.joinToString("")
+
+    val inviteLink = "https://gachiga.app/join?roomId=$newRoomId"
 
     val initialMember = RoomMember(
         user = hostUser,
@@ -421,6 +427,7 @@ fun createRoomInFirestore(
     val roomData = hashMapOf(
         "roomId" to newRoomId,
         "invitationCode" to newRoomId,
+        "inviteLink" to inviteLink,
         "createdAt" to System.currentTimeMillis(),
         "destination" to "미설정",
         "arrivalTime" to "14:00",
@@ -429,7 +436,7 @@ fun createRoomInFirestore(
 
     db.collection("rooms").document(newRoomId)
         .set(roomData)
-        .addOnSuccessListener { onSuccess(newRoomId) }
+        .addOnSuccessListener { onSuccess(newRoomId, inviteLink) }
         .addOnFailureListener { onFailure(it) }
 }
 

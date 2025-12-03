@@ -10,8 +10,7 @@ data class Member(
     var x: Double? = null,
     var y: Double? = null,
     var placeName: String = "",
-    // ★ [수정] 0 대신 확실한 색상값(파란색)을 기본값으로 지정
-    val color: Int = -16776961, // Color.BLUE (0xFF0000FF)
+    val color: Int = 0xFF1976D2.toInt(),
     var mode: TravelMode = TravelMode.CAR,
     var carOption: CarRouteOption = CarRouteOption.RECOMMEND,
     var publicTransitOption: PublicTransitOption = PublicTransitOption.OPTIMAL,
@@ -28,7 +27,7 @@ data class GachigaState(
     var destY: Double? = null,
     val arrivalTime: String = "14:00",
     // ★ [수정] 기본 멤버의 색상도 명시적으로 지정하거나 위 기본값 사용
-    val members: List<Member> = listOf(Member(id = 1, name = "나", color = -16776961))
+    val members: List<Member> = listOf(Member(id = 1, name = "나", color = 0xFF1976D2.toInt()))
 )
 
 data class User( // 수정: 모든 필드에 기본값
@@ -56,6 +55,10 @@ data class RoomMember(
     var y: Double? = null,      // 출발지 위도 (기존 유지)
     val travelMode: TravelMode = TravelMode.CAR,
 
+    val carOption: CarRouteOption = CarRouteOption.RECOMMEND,
+    val publicTransitOption: PublicTransitOption = PublicTransitOption.OPTIMAL,
+    var searchOption: Int = 0,
+
     // Firebase가 'is'로 시작하는 변수를 잘 읽게 해주기 위한 태그 추가
     @field:JvmField
     val isReady: Boolean = false,
@@ -80,7 +83,8 @@ data class RoomDetail(
     val members: List<RoomMember> = emptyList(),
     val invitationCode: String = (1..6).map { ('A'..'Z') + ('0'..'9') }.map { it.random() }.joinToString(""),
     val suggestedRoutes: List<SuggestedRoute> = emptyList(),
-    val finalPlace: String? = null
+    val finalPlace: String? = null,
+    val inviteLink: String = ""
 )
 
 /**
@@ -94,7 +98,8 @@ data class SuggestedRoute( // 수정: 모든 필드에 기본값 추가
     val totalFee: String= "",
     val latitude: Double = 0.0,
     val longitude: Double = 0.0,
-    val voters: List<String> = emptyList()
+    val voters: List<String> = emptyList(),
+    val description: String = ""
 )
 
 enum class CarRouteOption(val displayName: String) {

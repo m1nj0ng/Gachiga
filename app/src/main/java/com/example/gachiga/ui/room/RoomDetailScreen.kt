@@ -1,8 +1,10 @@
 package com.example.gachiga.ui.room
 
+import android.content.ActivityNotFoundException
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.Intent
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -25,8 +27,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.example.gachiga.data.CarRouteOption
+import com.example.gachiga.data.PublicTransitOption
 import com.example.gachiga.data.RoomDetail
 import com.example.gachiga.data.RoomMember
+import com.example.gachiga.data.TravelMode
 import com.example.gachiga.data.User
 import com.example.gachiga.navigation.AppDestinations
 import com.example.gachiga.ui.input.InfoRow
@@ -69,7 +74,15 @@ fun RoomDetailScreen(
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
             // 초대 코드 섹션
-            InvitationCodeSection(roomDetail.invitationCode)
+            InvitationCodeSection(
+                code = roomDetail.invitationCode,
+                inviteLink = roomDetail.inviteLink
+            )
+
+            // 카카오톡 초대 버튼
+            KakaoInviteButton(code = roomDetail.invitationCode)
+
+            Divider()
 
             // 공통 정보 섹션 (방장만 수정 가능)
             CommonInfoSection(
@@ -118,13 +131,20 @@ fun RoomDetailScreen(
 // `RoomDetailScreen`에서만 사용하는 작은 Composable들
 
 @Composable
-private fun InvitationCodeSection(code: String) {
+private fun InvitationCodeSection(
+    code: String,
+    inviteLink: String
+) {
     val context = LocalContext.current
     val clipboardManager = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
 
-    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.fillMaxWidth()
+    ) {
         Text("초대 코드", style = MaterialTheme.typography.titleMedium)
         Spacer(modifier = Modifier.height(8.dp))
+
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
@@ -139,6 +159,8 @@ private fun InvitationCodeSection(code: String) {
                 color = MaterialTheme.colorScheme.onPrimaryContainer
             )
             Spacer(modifier = Modifier.width(16.dp))
+
+            // 📋 코드 복사 버튼
             IconButton(
                 onClick = {
                     val clip = ClipData.newPlainText("초대 코드", code)
@@ -146,9 +168,76 @@ private fun InvitationCodeSection(code: String) {
                     Toast.makeText(context, "초대 코드가 복사되었습니다.", Toast.LENGTH_SHORT).show()
                 }
             ) {
-                Icon(Icons.Default.ContentCopy, "코드 복사")
+                Icon(Icons.Default.ContentCopy, contentDescription = "코드 복사")
+            }
+
+            // 🔗 링크 공유 버튼
+            IconButton(onClick = {
+                val sendIntent = android.content.Intent().apply {
+                    action = android.content.Intent.ACTION_SEND
+                    putExtra(android.content.Intent.EXTRA_TEXT, inviteLink)
+                    type = "text/plain"
+                }
+                val shareIntent = android.content.Intent.createChooser(sendIntent, "초대 링크 공유")
+                context.startActivity(shareIntent)
+            }) {
+                Icon(Icons.Default.Share, contentDescription = "링크 공유")
             }
         }
+    }
+}
+
+@Composable
+private fun KakaoInviteButton(code: String) {
+    val context = LocalContext.current
+
+    Button(
+        onClick = { shareRoomViaKakao(context, code) },
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 12.dp),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Icon(
+            imageVector = Icons.Default.Share,
+            contentDescription = "카카오톡으로 초대",
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Text("카카오톡으로 초대")
+    }
+}
+
+fun shareRoomViaKakao(context: Context, code: String) {
+    // 나중에 여기다가 딥링크나 앱 링크도 같이 넣으면 좋음
+    val inviteMessage = """
+        Gachiga에서 약속 방에 초대합니다! 🎉
+        
+        초대 코드: $code
+        
+        Gachiga 앱에서 '초대 코드로 참여하기'에 위 코드를 입력하면 방에 들어올 수 있어요.
+    """.trimIndent()
+
+    val kakaoPackage = "com.kakao.talk"
+
+    // 1차: 카카오톡으로 바로 보내기
+    val kakaoIntent = Intent(Intent.ACTION_SEND).apply {
+        type = "text/plain"
+        putExtra(Intent.EXTRA_TEXT, inviteMessage)
+        setPackage(kakaoPackage)
+    }
+
+    try {
+        context.startActivity(kakaoIntent)
+    } catch (e: ActivityNotFoundException) {
+        // 카카오톡이 설치 안 되어 있으면 일반 공유로 fallback
+        val genericIntent = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_TEXT, inviteMessage)
+        }
+        context.startActivity(
+            Intent.createChooser(genericIntent, "공유할 앱을 선택하세요")
+        )
+        Toast.makeText(context, "카카오톡이 설치되어 있지 않아 일반 공유로 전환합니다.", Toast.LENGTH_SHORT).show()
     }
 }
 
@@ -207,9 +296,14 @@ private fun MemberStatusCard(
     navController: NavController,
     roomId: String,
 ) {
+    var carOptionMenuExpanded by remember { mutableStateOf(false) }
+    var publicOptionMenuExpanded by remember { mutableStateOf(false) }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = if (isSelf) CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant) else CardDefaults.cardColors()
+        colors = if (isSelf) CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        ) else CardDefaults.cardColors()
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -238,7 +332,9 @@ private fun MemberStatusCard(
                     onClick = {
                         // 본인 카드일 때만 작동
                         if (isSelf) {
-                            navController.navigate("${AppDestinations.MAP_SELECTION_SCREEN}/startPoint/-1?roomId=${roomId}")
+                            navController.navigate(
+                                "${AppDestinations.MAP_SELECTION_SCREEN}/startPoint/-1?roomId=${roomId}"
+                            )
                         }
                     },
                     enabled = isSelf // 본인만 활성화
@@ -248,53 +344,146 @@ private fun MemberStatusCard(
             }
 
             // 교통수단 설정
-            InfoRow(icon = Icons.Default.DirectionsCar, title = "교통수단") {
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    // "대중교통" 버튼
+            InfoRow(icon = Icons.Default.DirectionsBus, title = "교통수단") {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    // 대중교통 아이콘
                     TransportButton(
-                        text = "대중교통",
-                        isSelected = member.travelMode == com.example.gachiga.data.TravelMode.TRANSIT,
+                        icon = Icons.Default.DirectionsTransit,
+                        contentDescription = "대중교통",
+                        isSelected = member.travelMode == TravelMode.TRANSIT,
                         onClick = {
                             if (isSelf) {
                                 onStateChange(
                                     member.copy(
-                                        travelMode = com.example.gachiga.data.TravelMode.TRANSIT,
+                                        travelMode = TravelMode.TRANSIT,
                                         isReady = false
                                     )
                                 )
                             }
                         }
                     )
-                    // "자차" 버튼
+
+                    // 자동차 아이콘
                     TransportButton(
-                        text = "자차",
-                        isSelected = member.travelMode == com.example.gachiga.data.TravelMode.CAR,
+                        icon = Icons.Default.DirectionsCar,
+                        contentDescription = "자동차",
+                        isSelected = member.travelMode == TravelMode.CAR,
                         onClick = {
                             if (isSelf) {
                                 onStateChange(
                                     member.copy(
-                                        travelMode = com.example.gachiga.data.TravelMode.CAR,
+                                        travelMode = TravelMode.CAR,
                                         isReady = false
                                     )
                                 )
                             }
                         }
                     )
-                    // "도보" 버튼 추가
+
+                    // 도보 아이콘
                     TransportButton(
-                        text = "도보",
-                        isSelected = member.travelMode == com.example.gachiga.data.TravelMode.WALK,
+                        icon = Icons.Default.DirectionsWalk,
+                        contentDescription = "도보",
+                        isSelected = member.travelMode == TravelMode.WALK,
                         onClick = {
                             if (isSelf) {
                                 onStateChange(
                                     member.copy(
-                                        travelMode = com.example.gachiga.data.TravelMode.WALK,
+                                        travelMode = TravelMode.WALK,
                                         isReady = false
                                     )
                                 )
                             }
                         }
                     )
+                }
+            }
+
+            when (member.travelMode) {
+                TravelMode.CAR -> {
+                    InfoRow(icon = Icons.Default.Tune, title = "경로 옵션") {
+                        Box {
+                            TextButton(
+                                onClick = { if (isSelf) carOptionMenuExpanded = true },
+                                enabled = isSelf
+                            ) {
+                                Text(member.carOption.displayName)
+                            }
+                            DropdownMenu(
+                                expanded = carOptionMenuExpanded,
+                                onDismissRequest = { carOptionMenuExpanded = false }
+                            ) {
+                                CarRouteOption.values().forEach { option ->
+                                    DropdownMenuItem(
+                                        text = { Text(option.displayName) },
+                                        onClick = {
+                                            if (isSelf) {
+                                                val code = when (option) {
+                                                    CarRouteOption.RECOMMEND -> 0
+                                                    CarRouteOption.FREE -> 1
+                                                    CarRouteOption.FASTEST -> 2
+                                                    CarRouteOption.SHORTEST -> 10
+                                                }
+                                                onStateChange(
+                                                    member.copy(
+                                                        carOption = option,
+                                                        searchOption = code,
+                                                        isReady = false
+                                                    )
+                                                )
+                                            }
+                                            carOptionMenuExpanded = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                TravelMode.TRANSIT -> {
+                    InfoRow(icon = Icons.Default.Tune, title = "경로 옵션") {
+                        Box {
+                            TextButton(
+                                onClick = { if (isSelf) publicOptionMenuExpanded = true },
+                                enabled = isSelf
+                            ) {
+                                Text(member.publicTransitOption.displayName)
+                            }
+                            DropdownMenu(
+                                expanded = publicOptionMenuExpanded,
+                                onDismissRequest = { publicOptionMenuExpanded = false }
+                            ) {
+                                PublicTransitOption.values().forEach { option ->
+                                    DropdownMenuItem(
+                                        text = { Text(option.displayName) },
+                                        onClick = {
+                                            if (isSelf) {
+                                                val code = when (option) {
+                                                    PublicTransitOption.OPTIMAL -> 0
+                                                    PublicTransitOption.LEAST_TRANSFER -> 1
+                                                    PublicTransitOption.FASTEST -> 2
+                                                    PublicTransitOption.LEAST_WALKING -> 3
+                                                }
+                                                onStateChange(
+                                                    member.copy(
+                                                        publicTransitOption = option,
+                                                        searchOption = code,
+                                                        isReady = false
+                                                    )
+                                                )
+                                            }
+                                            publicOptionMenuExpanded = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                TravelMode.WALK -> {
+                    // 도보는 옵션 없음
                 }
             }
 
