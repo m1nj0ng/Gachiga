@@ -40,6 +40,7 @@ fun RoomDetailScreen(
     loggedInUser: User,
     roomDetail: RoomDetail,
     onStateChange: (RoomDetail) -> Unit,
+    onMemberUpdate: (RoomMember) -> Unit,
     onCalculate: () -> Unit
 ) {
     val isHost = roomDetail.members.find { it.user.id == loggedInUser.id }?.isHost ?: false
@@ -87,10 +88,7 @@ fun RoomDetailScreen(
                         isSelf = (member.user.id == loggedInUser.id),
                         member = member,
                         onStateChange = { updatedMember ->
-                            val updatedList = roomDetail.members.map {
-                                if (it.user.id == updatedMember.user.id) updatedMember else it
-                            }
-                            onStateChange(roomDetail.copy(members = updatedList))
+                            onMemberUpdate(updatedMember)
                         },
                         navController = navController,
                         roomId = roomDetail.roomId

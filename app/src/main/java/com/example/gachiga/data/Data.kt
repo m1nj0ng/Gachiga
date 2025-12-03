@@ -4,8 +4,8 @@ package com.example.gachiga.data
  * 비로그인 버전의 멤버 정보를 담는 데이터 클래스
  */
 data class Member(
-    val id: Int,
-    val name: String,
+    val id: Int = 0, // 수정: 기본값 추가
+    val name: String = "", // 수정: 기본값 추가
     val startPoint: String = "미설정",
     var x: Double? = null,
     var y: Double? = null,
@@ -31,17 +31,17 @@ data class GachigaState(
     val members: List<Member> = listOf(Member(id = 1, name = "나", color = -16776961))
 )
 
-data class User(
-    val id: String,
-    val nickname: String,
-    val profileImageUrl: String
+data class User( // 수정: 모든 필드에 기본값
+    val id: String = "",
+    val nickname: String = "",
+    val profileImageUrl: String = ""
 )
 
-data class Room(
-    val roomId: String,
-    val roomName: String,
-    val host: User,
-    val members: List<User>
+data class Room( // 수정: 모든 필드에 기본값
+    val roomId: String = "",
+    val roomName: String = "",
+    val host: User = User(),
+    val members: List<User> = emptyList()
 )
 
 data class LoggedInState(
@@ -50,23 +50,31 @@ data class LoggedInState(
 )
 
 data class RoomMember(
-    val user: User,
+    val user: User = User(), // 수정: 빈 User 객체로 초기화
     val startPoint: String = "미설정",
     var x: Double? = null,      // 출발지 경도 (기존 유지)
     var y: Double? = null,      // 출발지 위도 (기존 유지)
     val travelMode: TravelMode = TravelMode.CAR,
+
+    // Firebase가 'is'로 시작하는 변수를 잘 읽게 해주기 위한 태그 추가
+    @field:JvmField
     val isReady: Boolean = false,
     val voted: Boolean = false,
+
+    @field:JvmField
     val isHost: Boolean = false
 )
 
 data class RoomDetail(
-    val roomId: String = "TEMP_ID_${System.currentTimeMillis()}",
+    val roomId: String = "", // 수정: 비워둠
     val destination: String = "미설정",
 
     // ★ [추가됨] 로그인 버전도 목적지 좌표가 필요합니다.
-    var destX: Double? = null, // 경도
-    var destY: Double? = null, // 위도
+    var destX: Double = 0.0, // 경도
+    var destY: Double = 0.0, // 위도
+
+    @field:JvmField
+    val isCalculating: Boolean = false, // 리더가 중간 지점 계산을 완료하면 다음 화면으로 넘어가게 하기 위한 변수
 
     val arrivalTime: String = "14:00",
     val members: List<RoomMember> = emptyList(),
@@ -78,14 +86,14 @@ data class RoomDetail(
 /**
  * 추천 경로 한 개에 대한 정보
  */
-data class SuggestedRoute(
-    val id: String,
-    val placeName: String,
-    val address: String,
-    val totalTime: String,
-    val totalFee: String,
-    val latitude: Double,
-    val longitude: Double,
+data class SuggestedRoute( // 수정: 모든 필드에 기본값 추가
+    val id: String= "",
+    val placeName: String= "",
+    val address: String= "",
+    val totalTime: String= "",
+    val totalFee: String= "",
+    val latitude: Double = 0.0,
+    val longitude: Double = 0.0,
     val voters: List<String> = emptyList()
 )
 

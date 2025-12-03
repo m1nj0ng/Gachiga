@@ -43,7 +43,7 @@ fun MapSelectionScreen(
     // 키보드 컨트롤러와 포커스 매니저를 가져옴
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
-    val KAKAO_API_KEY = "KakaoAK d162317df274417a97079a2d645e51a7"
+    val KAKAO_API_KEY = "KakaoAK 7544546b4955f1a8476537614a2a74bf"
 
     // 검색을 실행하는 공통 함수
     fun performSearch() {

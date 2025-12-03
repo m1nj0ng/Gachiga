@@ -1,14 +1,23 @@
 package com.example.gachiga // 패키지명 확인!
 
 import android.app.Application
+import android.util.Log
 import android.content.pm.PackageManager
 import com.kakao.sdk.common.KakaoSdk // ★ 이 import 필수
 import com.kakao.vectormap.KakaoMapSdk
+import com.google.firebase.FirebaseApp
 
 class App : Application() {
 
     override fun onCreate() {
         super.onCreate()
+
+        try {
+            FirebaseApp.initializeApp(this)
+            Log.i("APP_INIT", "FirebaseApp 초기화 성공")
+        } catch (e: Exception) {
+            Log.e("APP_INIT", "FirebaseApp 초기화 실패: ${e.message}")
+        }
 
         // 1. Manifest에서 키 추출
         val appKey = try {

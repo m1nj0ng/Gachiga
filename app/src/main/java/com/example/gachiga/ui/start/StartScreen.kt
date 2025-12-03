@@ -16,6 +16,7 @@ import androidx.compose.ui.unit.sp
 import com.kakao.sdk.common.model.ClientError
 import com.kakao.sdk.common.model.ClientErrorCause
 import com.kakao.sdk.user.UserApiClient
+import com.kakao.sdk.auth.model.OAuthToken
 import kotlinx.coroutines.launch
 
 /**
@@ -25,7 +26,7 @@ import kotlinx.coroutines.launch
  */
 @Composable
 fun StartScreen(
-    onNavigateToLogin: () -> Unit,
+    onNavigateToLogin: (String) -> Unit,
     onNavigateToInput: () -> Unit
 ) {
     val context = LocalContext.current
@@ -60,36 +61,29 @@ fun StartScreen(
                 onClick = {
                     coroutineScope.launch {
                         // 로그인 성공/실패 시 공통으로 처리할 콜백 함수
-                        val callback: (token: Any?, error: Throwable?) -> Unit = { token, error ->
+                        val callback: (OAuthToken?, Throwable?) -> Unit = { token, error ->
                             if (error != null) {
                                 Log.e("KAKAO_LOGIN", "로그인 실패", error)
                             } else if (token != null) {
-                                Log.i("KAKAO_LOGIN", "로그인 성공")
-                                // 로그인 성공 시, 외부(Navigation.kt)로 알림
-                                onNavigateToLogin()
+                                Log.i("KAKAO_LOGIN", "로그인 성공 ${token.accessToken}")
+
+                                onNavigateToLogin(token.accessToken)
                             }
                         }
 
-                        // 카카오톡이 설치되어 있는지 확인
                         if (UserApiClient.instance.isKakaoTalkLoginAvailable(context)) {
-                            // 카카오톡으로 로그인 시도
                             UserApiClient.instance.loginWithKakaoTalk(context) { token, error ->
                                 if (error != null) {
-                                    Log.e("KAKAO_LOGIN", "카카오톡으로 로그인 실패", error)
-
-                                    // 사용자가 카카오톡에서 로그인을 취소한 경우, 다른 시도 없이 종료
+                                    Log.e("KAKAO_LOGIN", "카카오톡 로그인 실패", error)
                                     if (error is ClientError && error.reason == ClientErrorCause.Cancelled) {
                                         return@loginWithKakaoTalk
                                     }
-                                    // 그 외 다른 오류(예: 카카오톡에 연결된 계정 없음)의 경우, 카카오계정으로 로그인 시도
                                     UserApiClient.instance.loginWithKakaoAccount(context, callback = callback)
                                 } else if (token != null) {
-                                    // 카카오톡 로그인 성공
-                                    callback(token, null)
+                                    onNavigateToLogin(token.accessToken)
                                 }
                             }
                         } else {
-                            // 카카오톡이 없으면, 카카오계정으로 로그인 시도
                             UserApiClient.instance.loginWithKakaoAccount(context, callback = callback)
                         }
                     }
