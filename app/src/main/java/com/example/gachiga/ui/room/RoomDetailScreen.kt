@@ -267,9 +267,9 @@ private fun MemberStatusCard(
                             }
                         }
                     )
-                    // "자차" 버튼
+                    // "자동차" 버튼
                     TransportButton(
-                        text = "자차",
+                        text = "자동차",
                         isSelected = member.travelMode == com.example.gachiga.data.TravelMode.CAR,
                         onClick = {
                             if (isSelf) {
