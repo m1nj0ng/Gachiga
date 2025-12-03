@@ -65,19 +65,42 @@ object RouteOptimizer {
                     meetPoint = LatLng.from(commonStation.lat, commonStation.lon)
                 }
 
-                // 2) 정류장 근접 매칭: 이름이 달라도 정류장이 상대방 경로 근처에 있는지 확인
+                // 2) 정류장/출발지 근접 매칭: 이름이 달라도 정류장이나 출발지가 상대방 경로 근처에 있는지 확인
                 if (meetPoint == null) {
-                    // (A) 차 vs 대중교통
+                    // (A) 차(Pivot) vs 대중교통(Candidate)
                     if (pivot.mode == TravelMode.CAR && candidate.mode == TravelMode.TRANSIT) {
-                        meetPoint = findProximityPoint(candidateRoute.stations, pivotRoute.points)
-                    } else if (pivot.mode == TravelMode.TRANSIT && candidate.mode == TravelMode.CAR) {
-                        meetPoint = findProximityPoint(pivotRoute.stations, candidateRoute.points)
+                        // [추가] 1순위: 상대방의 "출발지"가 내 경로 근처인가? (안양역 출발자를 픽업)
+                        if (candidate.x != null && candidate.y != null) {
+                            val startPt = StationPoint("출발지", candidate.y!!, candidate.x!!)
+                            // 반경 200m로 넉넉하게 체크
+                            if (RouteMath.isStationNearPath(startPt, pivotRoute.points, 200.0)) {
+                                meetPoint = LatLng.from(candidate.y!!, candidate.x!!)
+                            }
+                        }
+                        // 2순위: 상대방이 이동 중에 들르는 정류장이 내 경로 근처인가?
+                        if (meetPoint == null) {
+                            meetPoint = findProximityPoint(candidateRoute.stations, pivotRoute.points, 200.0)
+                        }
+                    }
+                    // (A-2) 대중교통(Pivot) vs 차(Candidate)
+                    else if (pivot.mode == TravelMode.TRANSIT && candidate.mode == TravelMode.CAR) {
+                        // [추가] 나의 "출발지"가 차 경로 근처인가?
+                        if (pivot.x != null && pivot.y != null) {
+                            val startPt = StationPoint("출발지", pivot.y!!, pivot.x!!)
+                            if (RouteMath.isStationNearPath(startPt, candidateRoute.points, 200.0)) {
+                                meetPoint = LatLng.from(pivot.y!!, pivot.x!!)
+                            }
+                        }
+                        if (meetPoint == null) {
+                            meetPoint = findProximityPoint(pivotRoute.stations, candidateRoute.points, 200.0)
+                        }
                     }
                     // (B) 차 vs 도보 (도보 경로상의 점들을 정류장처럼 취급하여 검사)
+                    // 반경을 200m로 확대
                     else if (pivot.mode == TravelMode.CAR && candidate.mode == TravelMode.WALK) {
-                        meetPoint = findProximityPointFromPath(candidateRoute.points, pivotRoute.points)
+                        meetPoint = findProximityPointFromPath(candidateRoute.points, pivotRoute.points, 200.0)
                     } else if (pivot.mode == TravelMode.WALK && candidate.mode == TravelMode.CAR) {
-                        meetPoint = findProximityPointFromPath(pivotRoute.points, candidateRoute.points)
+                        meetPoint = findProximityPointFromPath(pivotRoute.points, candidateRoute.points, 200.0)
                     }
                 }
 
@@ -121,11 +144,11 @@ object RouteOptimizer {
     // ========================================================================
 
     /**
-     * 정류장 리스트 중 자동차 경로(path)와 50m 이내로 가까운 첫 번째 지점을 찾습니다.
+     * 정류장 리스트 중 자동차 경로(path)와 지정된 반경(radius) 이내로 가까운 첫 번째 지점을 찾습니다.
      */
-    private fun findProximityPoint(stations: List<StationPoint>, path: List<LatLng>): LatLng? {
+    private fun findProximityPoint(stations: List<StationPoint>, path: List<LatLng>, radius: Double): LatLng? {
         val nearStation = stations.find { station ->
-            RouteMath.isStationNearPath(station, path, 50.0)
+            RouteMath.isStationNearPath(station, path, radius)
         }
         return nearStation?.let { LatLng.from(it.lat, it.lon) }
     }
@@ -134,11 +157,11 @@ object RouteOptimizer {
      * 도보 경로(점 리스트) 중 자동차 경로와 가까운 지점을 찾습니다.
      * 성능 최적화를 위해 점을 5개씩 건너뛰며(Step 5) 검사합니다.
      */
-    private fun findProximityPointFromPath(walkerPath: List<LatLng>, carPath: List<LatLng>): LatLng? {
+    private fun findProximityPointFromPath(walkerPath: List<LatLng>, carPath: List<LatLng>, radius: Double): LatLng? {
         for (i in walkerPath.indices step 5) {
             val point = walkerPath[i]
             val tempStation = StationPoint("Check", point.latitude, point.longitude)
-            if (RouteMath.isStationNearPath(tempStation, carPath, 50.0)) {
+            if (RouteMath.isStationNearPath(tempStation, carPath, radius)) {
                 return point
             }
         }
