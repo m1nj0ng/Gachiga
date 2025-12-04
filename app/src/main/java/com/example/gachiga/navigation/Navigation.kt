@@ -114,17 +114,23 @@ fun GachigaApp(
                         )
                     }
                 },
-                onJoinRoom = { inputCode -> // 추가: 참여하기 함수 호출
+                onJoinRoom = { inputCode, onSuccess, onFailure -> // 추가: 참여하기 함수 호출
                     val currentUser = loggedInState.currentUser
                     if (currentUser != null) {
                         joinRoomInFirestore(
                             roomId = inputCode,
                             joinUser = currentUser,
                             onSuccess = {
+                                onSuccess()
                                 navController.navigate("room_detail/$inputCode")
                             },
-                            onFailure = { Log.e("Lobby", "참여 실패: ${it.message}") }
+                            onFailure = {
+                                onFailure()
+                                Log.e("Lobby", "참여 실패: ${it.message}")
+                            }
                         )
+                    } else {
+                        onFailure()
                     }
                 }
             )
@@ -192,6 +198,11 @@ fun GachigaApp(
 
                                         if (navController.currentDestination?.route != AppDestinations.RESULT_SCREEN) {
                                             navController.navigate(AppDestinations.RESULT_SCREEN)
+                                        }
+                                    }
+                                    else {
+                                        if (navController.currentDestination?.route == AppDestinations.RESULT_SCREEN) {
+                                            navController.popBackStack()
                                         }
                                     }
                                 }

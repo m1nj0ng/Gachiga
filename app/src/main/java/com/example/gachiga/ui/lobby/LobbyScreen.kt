@@ -1,6 +1,7 @@
 package com.example.gachiga.ui.lobby
 
 import android.util.Log
+import android.widget.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -12,6 +13,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -28,11 +30,12 @@ fun LobbyScreen(
     navController: NavController,
     state: LoggedInState,
     onRoomCreated: (RoomDetail) -> Unit,
-    onJoinRoom: (String) -> Unit
+    onJoinRoom: (String, () -> Unit, () -> Unit) -> Unit
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
     var invitationCodeInput by remember { mutableStateOf("") }
+    val context = LocalContext.current
 
     Scaffold(
         topBar = {
@@ -123,7 +126,20 @@ fun LobbyScreen(
                     TextButton(
                         onClick = {
                             if (invitationCodeInput.isNotBlank()) {
-                                onJoinRoom(invitationCodeInput)
+                                onJoinRoom(
+                                    invitationCodeInput,
+                                    {
+                                        // 성공 시 (원하면 토스트나 로그 넣어도 됨)
+                                        // 예: Toast.makeText(context, "참여 완료!", Toast.LENGTH_SHORT).show()
+                                    },
+                                    {
+                                        Toast.makeText(
+                                            context,
+                                            "초대 코드를 다시 확인해주세요.",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                    }
+                                )
                             }
                         }
                     ) {
