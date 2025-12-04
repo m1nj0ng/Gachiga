@@ -194,6 +194,12 @@ fun GachigaApp(
                                             navController.navigate(AppDestinations.RESULT_SCREEN)
                                         }
                                     }
+                                    else {
+                                        if (navController.currentDestination?.route == AppDestinations.RESULT_SCREEN) {
+                                            navController.popBackStack()
+                                        }
+                                    }
+
                                 }
                             }
                         }
