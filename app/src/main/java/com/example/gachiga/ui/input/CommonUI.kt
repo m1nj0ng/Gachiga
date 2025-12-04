@@ -1,11 +1,15 @@
 package com.example.gachiga.ui.input
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
@@ -30,13 +34,46 @@ fun InfoRow(icon: ImageVector, title: String, content: @Composable () -> Unit) {
 }
 
 @Composable
-fun TransportButton(text: String, isSelected: Boolean, onClick: () -> Unit) {
-    Button(
-        onClick = onClick,
-        colors = if (isSelected) ButtonDefaults.buttonColors() else ButtonDefaults.outlinedButtonColors(),
-        border = if (isSelected) null else ButtonDefaults.outlinedButtonBorder
+fun TransportButton(
+    icon: ImageVector,
+    contentDescription: String,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    val shape = RoundedCornerShape(24.dp)
+
+    Surface(
+        shape = shape,
+        color = if (isSelected)
+            MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+        else
+            Color.Transparent,
+        border = BorderStroke(
+            width = if (isSelected) 2.dp else 1.dp,
+            color = if (isSelected)
+                MaterialTheme.colorScheme.primary
+            else
+                MaterialTheme.colorScheme.outline
+        ),
+        modifier = Modifier
+            .height(48.dp)
+            .width(64.dp)
+            .clickable { onClick() }
+            .padding(4.dp)
     ) {
-        Text(text)
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier.fillMaxSize()
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = contentDescription,
+                tint = if (isSelected)
+                    MaterialTheme.colorScheme.primary
+                else
+                    LocalContentColor.current
+            )
+        }
     }
 }
 

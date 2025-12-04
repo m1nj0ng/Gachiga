@@ -21,6 +21,7 @@ import com.google.firebase.Firebase
 import com.google.firebase.auth.auth
 import com.google.firebase.functions.functions
 import androidx.navigation.NavType
+import android.widget.Toast
 import androidx.navigation.navArgument
 import com.kakao.vectormap.LatLng
 import com.google.firebase.firestore.SetOptions
@@ -92,7 +93,7 @@ fun GachigaApp(
                     if (currentUser != null) {
                         createRoomInFirestore(
                             hostUser = currentUser,
-                            onSuccess = { createdRoomId ->
+                            onSuccess = { createdRoomId, inviteLink ->
                                 if (createdRoomId.isNotBlank()) {
                                     Log.d("Navigation", "방 생성 성공! ID: $createdRoomId")
                                     
@@ -100,6 +101,7 @@ fun GachigaApp(
                                     roomDetailState = newRoom.copy(
                                         roomId = createdRoomId,
                                         invitationCode = createdRoomId,
+                                        inviteLink = inviteLink,
                                         members = listOf(hostMember)
                                     )
 
@@ -170,7 +172,10 @@ fun GachigaApp(
                                                 y = roomMember.y, // y (위도)
                                                 placeName = roomMember.startPoint,
                                                 mode = roomMember.travelMode,
-                                                color = -16776961
+                                                color = -16776961,
+                                                carOption = roomMember.carOption,
+                                                publicTransitOption = roomMember.publicTransitOption,
+                                                searchOption = roomMember.searchOption
                                             )
                                         }
 
@@ -192,6 +197,65 @@ fun GachigaApp(
                                 }
                             }
                         }
+                }
+
+                // 추가: 뒤로 가기/방 나가기 로직 (방장, 멤버에 따라서)
+                val handleBackAction = {
+                    if (roomDetailState != null) {
+                        val members = roomDetailState!!.members
+                        val isHost = members.find { it.user.id == currentUser.id }?.isHost ?: false
+                        val context = navController.context
+
+                        if (isHost) {
+                            // --- Case 1: 방장 (Host) 나갈 때 ---
+                            if (members.size > 1) {
+                                // 1-1. 남은 멤버가 있으면 방장 위임 및 퇴장
+                                transferHostAndLeaveRoomInFirestore(
+                                    roomId = roomId,
+                                    oldHostUser = currentUser,
+                                    onSuccess = {
+                                        Toast.makeText(context, "방장이 위임되었습니다.", Toast.LENGTH_SHORT).show()
+                                        navController.navigate(AppDestinations.LOBBY_SCREEN) {
+                                            popUpTo(AppDestinations.LOBBY_SCREEN) { inclusive = true }
+                                        }
+                                    },
+                                    onFailure = { e ->
+                                        Toast.makeText(context, "방장 위임 실패: ${e.message}", Toast.LENGTH_LONG).show()
+                                        navController.navigate(AppDestinations.LOBBY_SCREEN)
+                                    }
+                                )
+                            } else {
+                                // 1-2. 혼자면 방 삭제
+                                deleteRoomInFirestore(roomId, onSuccess = {
+                                    Toast.makeText(context, "방이 삭제되었습니다.", Toast.LENGTH_SHORT).show()
+                                    navController.navigate(AppDestinations.LOBBY_SCREEN) {
+                                        popUpTo(AppDestinations.LOBBY_SCREEN) { inclusive = true }
+                                    }
+                                }, onFailure = { e ->
+                                    Toast.makeText(context, "방 삭제 실패: ${e.message}", Toast.LENGTH_LONG).show()
+                                    navController.navigate(AppDestinations.LOBBY_SCREEN)
+                                })
+                            }
+
+                        } else {
+                            // --- Case 2: 멤버 (Member) 나갈 때 ---
+                            // leaveRoomInFirestore 로직 사용
+                            leaveRoomInFirestore(
+                                roomId = roomId,
+                                leaveUser = currentUser,
+                                onSuccess = {
+                                    Toast.makeText(context, "방에서 나왔습니다.", Toast.LENGTH_SHORT).show()
+                                    navController.navigate(AppDestinations.LOBBY_SCREEN) {
+                                        popUpTo(AppDestinations.LOBBY_SCREEN) { inclusive = true }
+                                    }
+                                },
+                                onFailure = { e ->
+                                    Toast.makeText(context, "방 나가기 실패: ${e.message}", Toast.LENGTH_LONG).show()
+                                    navController.navigate(AppDestinations.LOBBY_SCREEN)
+                                }
+                            )
+                        }
+                    }
                 }
 
                 if (roomDetailState != null) {
@@ -238,7 +302,8 @@ fun GachigaApp(
                                         Log.e("Navigation", "계산 신호 전송 실패")
                                     }
                                 }
-                            }
+                            },
+                            onBackAction = handleBackAction // 추가: 뒤로 가기 함수 전달
                         )
                     } else {
                         // (투표 화면 등 기존 코드 유지)
@@ -355,10 +420,24 @@ fun GachigaApp(
 
         composable(AppDestinations.RESULT_SCREEN) {
             // ★ [수정] 이제 더미 데이터 대신 진짜 저장소와 State를 넘깁니다.
+
+            // 현재 방 정보와 방장 여부 확인
+            val currentRoomId = roomDetailState?.roomId
+            val isHost = roomDetailState?.members?.find { it.user.id == loggedInState.currentUser?.id }?.isHost == true
+
             ResultScreen(
                 navController = navController,
                 repository = repository,
-                gachigaState = nonLoggedInState
+                gachigaState = nonLoggedInState,
+
+                // 뒤로 가기 눌렀을 때 행동
+                onBackToEdit = {
+                    // 방장이라면 Firebase에 계산 끝났다(false)고 알림
+                    if (currentRoomId != null) {
+                        updateRoomInFirestore(currentRoomId, mapOf("isCalculating" to false)) {}
+                    }
+                    navController.popBackStack()
+                }
             )
         }
     }
@@ -404,12 +483,14 @@ private fun signInToFirebaseWithCustomToken(firebaseToken: String, onSuccess: (c
 // 3. 방 생성 함수 (랜덤 코드 생성 포함)
 fun createRoomInFirestore(
     hostUser: User,
-    onSuccess: (String) -> Unit,
+    onSuccess: (String, String) -> Unit,
     onFailure: (Exception) -> Unit
 ) {
     val db = Firebase.firestore
     // 6자리 랜덤 코드 생성
     val newRoomId = (1..6).map { ('A'..'Z') + ('0'..'9') }.map { it.random() }.joinToString("")
+
+    val inviteLink = "https://gachiga.app/join?roomId=$newRoomId"
 
     val initialMember = RoomMember(
         user = hostUser,
@@ -421,6 +502,7 @@ fun createRoomInFirestore(
     val roomData = hashMapOf(
         "roomId" to newRoomId,
         "invitationCode" to newRoomId,
+        "inviteLink" to inviteLink,
         "createdAt" to System.currentTimeMillis(),
         "destination" to "미설정",
         "arrivalTime" to "14:00",
@@ -429,7 +511,7 @@ fun createRoomInFirestore(
 
     db.collection("rooms").document(newRoomId)
         .set(roomData)
-        .addOnSuccessListener { onSuccess(newRoomId) }
+        .addOnSuccessListener { onSuccess(newRoomId, inviteLink) }
         .addOnFailureListener { onFailure(it) }
 }
 
@@ -493,4 +575,85 @@ fun updateMemberInFirestore(
         }
         transaction.update(roomRef, "members", newMemberList)
     }.addOnFailureListener { onFailure(it) }
+}
+
+// 7. 방 나가기 함수
+fun leaveRoomInFirestore(
+    roomId: String,
+    leaveUser: User,
+    onSuccess: () -> Unit,
+    onFailure: (Exception) -> Unit
+) {
+    val db = Firebase.firestore
+    val roomRef = db.collection("rooms").document(roomId)
+
+    db.runTransaction { transaction ->
+        val snapshot = transaction.get(roomRef)
+        val currentMembers = snapshot.toObject(RoomDetail::class.java)?.members ?: return@runTransaction
+
+        // 방장이 나가려고 하면 막음 (방장이 나가면 방 자체가 사라져야 하므로)
+        if (currentMembers.find { it.user.id == leaveUser.id }?.isHost == true) {
+            throw Exception("방장은 뒤로가기로 나갈 수 없습니다.")
+        }
+
+        // 나가는 멤버를 제외하고 새로운 리스트 생성 - Compose 화면에서 자동으로 번호가 앞당겨지는 효과
+        val newMemberList = currentMembers.filter { it.user.id != leaveUser.id }
+
+        // 새로운 리스트로 덮어쓰기
+        transaction.update(roomRef, "members", newMemberList)
+
+    }.addOnSuccessListener { onSuccess() }
+        .addOnFailureListener { onFailure(it) }
+}
+
+// 8. 방장이 나갈 때 다음 멤버에게 방장 권한을 위임하고 나가는 트랜잭션 함수
+fun transferHostAndLeaveRoomInFirestore(
+    roomId: String,
+    oldHostUser: User,
+    onSuccess: () -> Unit,
+    onFailure: (Exception) -> Unit
+) {
+    val db = Firebase.firestore
+    val roomRef = db.collection("rooms").document(roomId)
+
+    db.runTransaction { transaction ->
+        val snapshot = transaction.get(roomRef)
+        val roomDetail = snapshot.toObject(RoomDetail::class.java)
+        val currentMembers = roomDetail?.members ?: throw Exception("방 정보를 찾을 수 없습니다.")
+
+        // 기존 방장을 제외한 리스트
+        val remainingMembers = currentMembers.filter { it.user.id != oldHostUser.id }
+
+        // 다음 방장을 찾음 (나가는 사람 제외 첫 번째 멤버)
+        val newHost = remainingMembers.firstOrNull() ?: throw Exception("방에 남은 멤버가 없습니다. 방을 제거합니다.")
+
+        // 새 리스트 생성: 새 방장의 isHost를 true로 설정
+        val updatedMembers = remainingMembers.map { member ->
+            if (member.user.id == newHost.user.id) {
+                // 새로운 방장으로
+                member.copy(isHost = true)
+            } else {
+                // 나머지 멤버는 유지
+                member
+            }
+        }
+
+        // Firebase 업데이트 (새 멤버 리스트로 덮어쓰기)
+        transaction.update(roomRef, "members", updatedMembers)
+
+    }.addOnSuccessListener { onSuccess() }
+        .addOnFailureListener { onFailure(it) }
+}
+
+// 9. 방 자체를 삭제하는 함수(방장 혼자 남았을 때 사용)
+fun deleteRoomInFirestore(
+    roomId: String,
+    onSuccess: () -> Unit,
+    onFailure: (Exception) -> Unit
+) {
+    val db = Firebase.firestore
+    db.collection("rooms").document(roomId)
+        .delete()
+        .addOnSuccessListener { onSuccess() }
+        .addOnFailureListener { onFailure(it) }
 }

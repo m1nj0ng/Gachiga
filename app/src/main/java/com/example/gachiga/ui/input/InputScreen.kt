@@ -12,8 +12,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.DirectionsWalk
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.DirectionsBus
 import androidx.compose.material.icons.filled.DirectionsCar
+import androidx.compose.material.icons.filled.DirectionsTransit
+import androidx.compose.material.icons.filled.DirectionsWalk
+import androidx.compose.material.icons.filled.DriveEta
 import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.filled.RemoveCircleOutline
@@ -258,20 +263,26 @@ fun MemberCard(
                     Text(member.startPoint)
                 }
             }
-            InfoRow(icon = Icons.Default.DirectionsCar, title = "교통수단") {
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            InfoRow(icon = Icons.Default.DirectionsBus, title = "교통수단") {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+
                     TransportButton(
-                        text = "대중교통",
+                        icon = Icons.Default.DirectionsTransit,
+                        contentDescription = "대중교통",
                         isSelected = member.mode == TravelMode.TRANSIT,
                         onClick = { onMemberChange(member.copy(mode = TravelMode.TRANSIT)) }
                     )
+
                     TransportButton(
-                        text = "자동차",
+                        icon = Icons.Default.DirectionsCar,
+                        contentDescription = "자동차",
                         isSelected = member.mode == TravelMode.CAR,
                         onClick = { onMemberChange(member.copy(mode = TravelMode.CAR)) }
                     )
+
                     TransportButton(
-                        text = "도보",
+                        icon = Icons.Default.DirectionsWalk,
+                        contentDescription = "도보",
                         isSelected = member.mode == TravelMode.WALK,
                         onClick = { onMemberChange(member.copy(mode = TravelMode.WALK)) }
                     )

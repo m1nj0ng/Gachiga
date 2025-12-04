@@ -55,6 +55,10 @@ data class RoomMember(
     var y: Double? = null,      // 출발지 위도 (기존 유지)
     val travelMode: TravelMode = TravelMode.CAR,
 
+    val carOption: CarRouteOption = CarRouteOption.RECOMMEND,
+    val publicTransitOption: PublicTransitOption = PublicTransitOption.OPTIMAL,
+    var searchOption: Int = 0,
+
     // Firebase가 'is'로 시작하는 변수를 잘 읽게 해주기 위한 태그 추가
     @field:JvmField
     val isReady: Boolean = false,
@@ -79,7 +83,8 @@ data class RoomDetail(
     val members: List<RoomMember> = emptyList(),
     val invitationCode: String = (1..6).map { ('A'..'Z') + ('0'..'9') }.map { it.random() }.joinToString(""),
     val suggestedRoutes: List<SuggestedRoute> = emptyList(),
-    val finalPlace: String? = null
+    val finalPlace: String? = null,
+    val inviteLink: String = ""
 )
 
 /**

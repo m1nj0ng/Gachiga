@@ -24,13 +24,15 @@ import com.kakao.vectormap.MapLifeCycleCallback
 import com.kakao.vectormap.MapView
 import kotlinx.coroutines.launch
 import java.util.Calendar
+import androidx.activity.compose.BackHandler
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ResultScreen(
     navController: NavController,
     repository: RouteRepository, // ★ [변경] 더미 데이터 대신 Repository 받음
-    gachigaState: GachigaState   // ★ [변경] 사용자 입력 정보 받음
+    gachigaState: GachigaState,   // ★ [변경] 사용자 입력 정보 받음
+    onBackToEdit: () -> Unit // 추가: Navigation에서 넘겨준 뒤로 가기 함수 받음
 ) {
     // 1. 로직 매니저 생성
     val logicManager = remember { RouteLogicManager(repository) }
@@ -41,12 +43,16 @@ fun ResultScreen(
     // 3. 비동기 실행을 위한 Scope
     val coroutineScope = rememberCoroutineScope()
 
+    BackHandler {
+        onBackToEdit()
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(title = {
                 Text("중간지점 계산 결과", fontWeight = FontWeight.Bold)
             }, navigationIcon = {
-                IconButton(onClick = { navController.navigateUp() }) {
+                IconButton(onClick = { onBackToEdit() }) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, "뒤로가기")
                 }
             })
