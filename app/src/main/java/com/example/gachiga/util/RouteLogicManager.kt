@@ -412,4 +412,60 @@ class RouteLogicManager(private val repository: RouteRepository) {
             if (shouldStop) break
         }
     }
+
+    /**
+     * [무게중심 기반 추천]
+     * 멤버들의 좌표 평균(Center)을 구하고, 카테고리별로 상위 3개씩 추천합니다.
+     */
+    suspend fun recommendMidpointPlaces(members: List<Member>): List<SuggestedRoute> = withContext(Dispatchers.IO) {
+        // 1. 유효한 좌표를 가진 멤버만 필터링
+        val validMembers = members.filter { it.x != null && it.y != null }
+        if (validMembers.isEmpty()) return@withContext emptyList()
+
+        // 2. 무게중심(Centroid) 계산
+        val avgX = validMembers.map { it.x!! }.average()
+        val avgY = validMembers.map { it.y!! }.average()
+
+        // 3. 추천 카테고리 정의 (지하철, 카페, 음식점)
+        val targetCategories = listOf("SW8", "CE7", "FD6")
+        val results = mutableListOf<SuggestedRoute>()
+
+        // 4. 카테고리별 검색 및 변환
+        for (code in targetCategories) {
+            // ★ 여기서 .take(3)으로 3개만 가져옵니다.
+            val places = repository.searchCategory(code, avgX, avgY, 2000).take(3)
+
+            places.forEach { place ->
+                results.add(
+                    SuggestedRoute(
+                        id = "REC_${place.placeName}", // 고유 ID 생성
+                        placeName = place.placeName,
+                        address = place.roadAddressName.ifBlank { place.addressName },
+                        latitude = place.latitude.toDouble(),
+                        longitude = place.longitude.toDouble(),
+
+                        // ★ 주의: 여기엔 '모두를 위한 정보'만 넣어야 합니다.
+                        // 개인별 소요시간/비용은 여기서 계산할 수 없습니다. (아래 설명 참조)
+                        totalTime = "추천 장소",
+                        totalFee = getCategoryName(code), // 예: "지하철역", "카페"
+                        description = "멤버들의 중간 지점 반경 2km 내 추천 장소입니다."
+                    )
+                )
+            }
+        }
+
+        return@withContext results
+    }
+
+    // 카테고리 코드 -> 한글 이름 변환 헬퍼
+    private fun getCategoryName(code: String): String {
+        return when(code) {
+            "SW8" -> "지하철역"
+            "CE7" -> "카페"
+            "FD6" -> "음식점"
+            "AT4" -> "관광명소"
+            "CT1" -> "문화시설"
+            else -> "장소"
+        }
+    }
 }

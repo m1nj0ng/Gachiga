@@ -27,9 +27,10 @@ import com.example.gachiga.R
 import com.example.gachiga.data.RoomMember
 import com.example.gachiga.data.SuggestedRoute
 import com.example.gachiga.data.User
+import com.example.gachiga.util.RouteMath
+import com.kakao.vectormap.LatLng
 import com.kakao.vectormap.KakaoMap
 import com.kakao.vectormap.KakaoMapReadyCallback
-import com.kakao.vectormap.LatLng
 import com.kakao.vectormap.MapLifeCycleCallback
 import com.kakao.vectormap.MapView
 import com.kakao.vectormap.camera.CameraUpdateFactory
@@ -163,6 +164,8 @@ private fun VoteListContent(
             contentPadding = PaddingValues(vertical = 16.dp)
         ) {
             itemsIndexed(routes) { index, route ->
+                // 내 정보 찾기
+                val myInfo = members.find { it.user.id == loggedInUser.id }
                 VoteCard(
                     route = route,
                     rank = index + 1,
@@ -172,7 +175,8 @@ private fun VoteListContent(
                     onFinalSelect = { onFinalSelect(route.id) },
                     isTopRoute = route in topRoutes && allMembersVoted,
                     canVote = !allMembersVoted,
-                    onShowDetail = { onShowDetail(route) }
+                    onShowDetail = { onShowDetail(route) },
+                    myMemberInfo = myInfo // ★ 전달
                 )
             }
         }
@@ -207,9 +211,6 @@ private fun RouteDetailMapContent(route: SuggestedRoute) {
     )
 }
 
-/**
- * 투표 기능을 포함한 경로 카드
- */
 @Composable
 private fun VoteCard(
     route: SuggestedRoute,
@@ -220,8 +221,28 @@ private fun VoteCard(
     showFinalSelectButton: Boolean,
     onFinalSelect: () -> Unit,
     isTopRoute: Boolean,
-    canVote: Boolean
+    canVote: Boolean,
+
+    // ★ [추가] 거리 계산을 위해 내 정보를 받습니다.
+    myMemberInfo: RoomMember?
 ) {
+    // ★ [로직 추가] 내 위치에서 후보지까지의 직선 거리 계산
+    val myDistanceStr = remember(route, myMemberInfo) {
+        if (myMemberInfo?.x != null && myMemberInfo.y != null) {
+            val start = com.kakao.vectormap.LatLng.from(myMemberInfo.y!!, myMemberInfo.x!!)
+            val end = com.kakao.vectormap.LatLng.from(route.latitude, route.longitude)
+
+            // RouteMath를 활용해 거리(m) 계산
+            val distMeters = com.example.gachiga.util.RouteMath.haversineMeters(start, end)
+
+            // 1km 이상이면 km 단위, 아니면 m 단위 표시
+            if (distMeters >= 1000) String.format("%.1fkm", distMeters / 1000)
+            else "${distMeters.toInt()}m"
+        } else {
+            "-"
+        }
+    }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         elevation = CardDefaults.cardElevation(defaultElevation = if (isTopRoute) 4.dp else 2.dp),
@@ -231,6 +252,7 @@ private fun VoteCard(
         ) else null
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
+            // [상단] 순위, 이름, 투표 버튼
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -250,31 +272,54 @@ private fun VoteCard(
                 ) {
                     Icon(Icons.Default.HowToVote, "투표", Modifier.size(18.dp))
                     Spacer(Modifier.width(4.dp))
-                    Text(if (isVotedByMe) "투표 취소" else "투표")
+                    Text(if (isVotedByMe) "취소" else "투표")
                 }
             }
+
             Spacer(Modifier.height(4.dp))
+
+            // [중단] 득표수
             Text(
                 "총 ${route.voters.size}표",
                 color = MaterialTheme.colorScheme.primary,
                 fontWeight = FontWeight.Bold
             )
+
             Divider(modifier = Modifier.padding(vertical = 8.dp))
+
+            // [하단] 거리 정보, 카테고리, 지도 버튼
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("소요시간: ${route.totalTime}")
-                Text("비용: ${route.totalFee}")
+                // 1. 내 위치로부터의 거리
+                Column {
+                    Text("내 위치에서", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                    Text(
+                        text = "$myDistanceStr",
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+
+                // 2. 장소 카테고리 (예: 카페, 지하철역) - totalFee 필드 활용
+                Text(
+                    text = route.totalFee,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+
+                // 3. 지도 보기 아이콘
                 IconButton(onClick = onShowDetail) {
                     Icon(Icons.Default.Search, "지도 보기")
                 }
             }
+
+            // [하단] 방장 전용 확정 버튼
             if (showFinalSelectButton) {
                 Spacer(Modifier.height(8.dp))
                 Button(onClick = onFinalSelect, modifier = Modifier.align(Alignment.End)) {
-                    Text("이걸로 결정")
+                    Text("이 장소로 확정")
                 }
             }
         }

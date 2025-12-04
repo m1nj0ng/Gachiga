@@ -57,6 +57,7 @@ interface KakaoApiService {
 
     @GET("v2/local/geo/coord2address.json")
     suspend fun coord2address(
+        @Header("Authorization") apiKey: String,
         @Query("x") x: String,
         @Query("y") y: String
     ): AddressResponse

@@ -23,8 +23,10 @@ import com.google.firebase.functions.functions
 import androidx.navigation.NavType
 import android.widget.Toast
 import androidx.navigation.navArgument
+import com.example.gachiga.util.RouteLogicManager
 import com.kakao.vectormap.LatLng
 import com.google.firebase.firestore.SetOptions
+import kotlinx.coroutines.launch
 
 object AppDestinations {
     const val START_SCREEN = "start"
@@ -151,6 +153,10 @@ fun GachigaApp(
             val roomId = backStackEntry.arguments?.getString("roomId")
             val currentUser = loggedInState.currentUser
 
+            // ★ 로직 매니저와 스코프 준비 (추천 기능 사용을 위해)
+            val logicManager = remember { RouteLogicManager(repository) }
+            val scope = rememberCoroutineScope()
+
             if (roomId != null && currentUser != null) {
 
                 // 실시간 감시 + 감지 로직
@@ -165,19 +171,20 @@ fun GachigaApp(
                                 if (roomData != null) {
                                     roomDetailState = roomData // 1. 화면 갱신
 
-                                    // 2. isCalculating  켜졌는지 확인!
+                                    // 2. isCalculating 켜졌는지 확인!
                                     if (roomData.isCalculating) {
 
-                                        // 데이터를 GachigaState으로 변환
+                                        // 데이터를 GachigaState으로 변환 (로직용 Member로 변환)
                                         val convertedMembers = roomData.members.map { roomMember ->
                                             com.example.gachiga.data.Member(
                                                 id = roomMember.user.id.hashCode(),
                                                 name = roomMember.user.nickname,
                                                 startPoint = roomMember.startPoint,
-                                                x = roomMember.x, // x (경도)
-                                                y = roomMember.y, // y (위도)
+                                                x = roomMember.x,
+                                                y = roomMember.y,
                                                 placeName = roomMember.startPoint,
                                                 mode = roomMember.travelMode,
+                                                // 저장된 색상이 있으면 쓰고, 없으면 기본값 파랑(-16776961)
                                                 color = -16776961,
                                                 carOption = roomMember.carOption,
                                                 publicTransitOption = roomMember.publicTransitOption,
@@ -199,8 +206,7 @@ fun GachigaApp(
                                         if (navController.currentDestination?.route != AppDestinations.RESULT_SCREEN) {
                                             navController.navigate(AppDestinations.RESULT_SCREEN)
                                         }
-                                    }
-                                    else {
+                                    } else {
                                         if (navController.currentDestination?.route == AppDestinations.RESULT_SCREEN) {
                                             navController.popBackStack()
                                         }
@@ -210,7 +216,7 @@ fun GachigaApp(
                         }
                 }
 
-                // 추가: 뒤로 가기/방 나가기 로직 (방장, 멤버에 따라서)
+                // 뒤로 가기/방 나가기 로직
                 val handleBackAction = {
                     if (roomDetailState != null) {
                         val members = roomDetailState!!.members
@@ -250,7 +256,6 @@ fun GachigaApp(
 
                         } else {
                             // --- Case 2: 멤버 (Member) 나갈 때 ---
-                            // leaveRoomInFirestore 로직 사용
                             leaveRoomInFirestore(
                                 roomId = roomId,
                                 leaveUser = currentUser,
@@ -270,13 +275,14 @@ fun GachigaApp(
                 }
 
                 if (roomDetailState != null) {
+                    // 추천 경로가 비어있으면 -> 방 상세 화면 (대기방)
                     if (roomDetailState!!.suggestedRoutes.isEmpty()) {
                         RoomDetailScreen(
                             navController = navController,
                             loggedInUser = currentUser,
                             roomDetail = roomDetailState!!,
 
-                            // 방 정보 저장 (기존 코드 유지)
+                            // 방 정보 저장 (기존 코드 수정)
                             onStateChange = { updatedRoom ->
                                 val isHost = roomDetailState!!.members.find {
                                     it.user.id == currentUser.id
@@ -287,21 +293,42 @@ fun GachigaApp(
                                         "destination" to updatedRoom.destination,
                                         "arrivalTime" to updatedRoom.arrivalTime
                                     )
+
+                                    // 1. 목적지 좌표 업데이트
                                     if (updatedRoom.destY != 0.0 && updatedRoom.destX != 0.0) {
                                         updates["destY"] = updatedRoom.destY
                                         updates["destX"] = updatedRoom.destX
+                                    } else {
+                                        // X 버튼 눌러서 초기화된 경우 (좌표 0.0)
+                                        updates["destY"] = 0.0
+                                        updates["destX"] = 0.0
                                     }
+
+                                    // ★ [추가] 목적지가 "미설정"으로 초기화되면 -> 모든 멤버의 투표 상태 리셋
+                                    if (updatedRoom.destination == "미설정") {
+                                        // 1. 추천 경로 리스트 비우기
+                                        updates["suggestedRoutes"] = emptyList<SuggestedRoute>()
+
+                                        // 2. 모든 멤버의 voted = false 로 초기화
+                                        roomDetailState!!.members.forEach { member ->
+                                            if (member.voted) { // 투표한 사람만 굳이 찾아서
+                                                val resetMember = member.copy(voted = false)
+                                                updateMemberInFirestore(roomId, resetMember) {}
+                                            }
+                                        }
+                                    }
+
                                     updateRoomInFirestore(roomId, updates) {}
                                     roomDetailState = updatedRoom
                                 }
                             },
 
-                            // 멤버 정보 저장 (기존 코드 유지)
+                            // 멤버 정보 저장
                             onMemberUpdate = { updatedMember ->
                                 updateMemberInFirestore(roomId, updatedMember) {}
                             },
 
-                            // 계산 버튼 클릭 시
+                            // [기존] 계산 버튼 클릭 시
                             onCalculate = {
                                 val isHost = roomDetailState!!.members.find {
                                     it.user.id == currentUser.id
@@ -314,20 +341,95 @@ fun GachigaApp(
                                     }
                                 }
                             },
-                            onBackAction = handleBackAction // 추가: 뒤로 가기 함수 전달
+
+                            // 뒤로 가기
+                            onBackAction = handleBackAction,
+
+                            // ★ [추가] 추천받기 버튼 클릭 시 (목적지 미설정일 때 호출됨)
+                            onRecommend = {
+                                val isHost = roomDetailState!!.members.find { it.user.id == currentUser.id }?.isHost == true
+                                if (isHost) {
+                                    // 1. 코루틴 실행
+                                    scope.launch {
+                                        // 2. 현재 방 멤버들을 로직용 Member 객체로 변환 (좌표만 있으면 됨)
+                                        val membersForLogic = roomDetailState!!.members.map {
+                                            com.example.gachiga.data.Member(
+                                                id = it.user.id.hashCode(),
+                                                name = it.user.nickname,
+                                                x = it.x,
+                                                y = it.y
+                                            )
+                                        }
+
+                                        // 3. 로직 매니저 호출 (무게중심 -> 카테고리별 추천 장소 리스트 반환)
+                                        val recommendations = logicManager.recommendMidpointPlaces(membersForLogic)
+
+                                        // 4. Firestore에 저장 -> SnapshotListener가 감지하여 화면 자동 전환
+                                        if (recommendations.isNotEmpty()) {
+                                            updateRoomInFirestore(roomId, mapOf("suggestedRoutes" to recommendations)) {
+                                                Log.e("Nav", "추천 경로 저장 실패: $it")
+                                            }
+                                        } else {
+                                            Toast.makeText(navController.context, "추천할 장소를 찾지 못했습니다.", Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
+                                }
+                            }
                         )
                     } else {
-                        // (투표 화면 등 기존 코드 유지)
+                        // 추천 경로(suggestedRoutes)가 있으면 -> 투표 화면 (VoteScreen)
                         val isHost = roomDetailState!!.members.find { it.user.id == currentUser.id }?.isHost ?: false
+
                         VoteScreen(
                             navController = navController,
                             loggedInUser = currentUser,
                             members = roomDetailState!!.members,
                             routes = roomDetailState!!.suggestedRoutes,
                             isHost = isHost,
-                            onVote = { routeId, userId -> /*...*/ },
-                            onVoteComplete = { userId -> /*...*/ },
-                            onFinalSelect = { routeId -> /*...*/ }
+
+                            // [투표 로직]
+                            onVote = { routeId, userId ->
+                                // 현재 경로 리스트 복사 및 수정
+                                val updatedRoutes = roomDetailState!!.suggestedRoutes.map { route ->
+                                    if (route.id == routeId) {
+                                        // 이미 투표했으면 제거, 아니면 추가
+                                        val newVoters = if (userId in route.voters) {
+                                            route.voters - userId
+                                        } else {
+                                            (route.voters + userId).distinct()
+                                        }
+                                        route.copy(voters = newVoters)
+                                    } else {
+                                        route
+                                    }
+                                }
+                                // Firestore에 업데이트
+                                updateRoomInFirestore(roomId, mapOf("suggestedRoutes" to updatedRoutes)) {}
+                            },
+
+                            // [투표 완료 상태 토글]
+                            onVoteComplete = { userId ->
+                                val updatedMember = roomDetailState!!.members.find { it.user.id == userId }?.copy(voted = true)
+                                if (updatedMember != null) {
+                                    updateMemberInFirestore(roomId, updatedMember) {}
+                                }
+                            },
+
+                            // ★ [최종 선택] 방장이 확정 버튼 눌렀을 때
+                            onFinalSelect = { routeId ->
+                                val selectedRoute = roomDetailState!!.suggestedRoutes.find { it.id == routeId }
+                                if (selectedRoute != null) {
+                                    // 1. 목적지를 선택된 장소로 설정
+                                    // 2. 추천 리스트 비우기 (-> 다시 RoomDetailScreen으로 돌아감)
+                                    val updates = mapOf(
+                                        "destination" to selectedRoute.placeName,
+                                        "destX" to selectedRoute.longitude,
+                                        "destY" to selectedRoute.latitude,
+                                        "suggestedRoutes" to emptyList<SuggestedRoute>()
+                                    )
+                                    updateRoomInFirestore(roomId, updates) {}
+                                }
+                            }
                         )
                     }
                 } else {

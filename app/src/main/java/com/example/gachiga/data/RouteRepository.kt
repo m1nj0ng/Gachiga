@@ -4,6 +4,7 @@ import com.kakao.vectormap.LatLng
 import com.example.gachiga.data.*
 import com.example.gachiga.network.*
 import com.example.gachiga.util.RouteMath
+import com.example.gachiga.BuildConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -216,7 +217,13 @@ class RouteRepository {
             if (store != null) return@withContext "${store.placeName} 앞"
 
             // 4. 주소 변환 (최후의 수단)
-            val addressData = localApi.coord2address(x, y).documents.firstOrNull()
+            // ★ [수정] 인터페이스 변경에 맞춰 API 키를 첫 번째 인자로 전달합니다.
+            // NetworkModule이 이미 헤더를 관리하고 있지만, 메서드 시그니처가 바뀌었으므로 값을 넣어줘야 합니다.
+            val addressData = localApi.coord2address(
+                "KakaoAK ${BuildConfig.KAKAO_REST_API_KEY}",
+                x,
+                y
+            ).documents.firstOrNull()
             val roadAddr = addressData?.roadAddress?.addressName
             val jibunAddr = addressData?.address?.addressName
 
@@ -224,6 +231,31 @@ class RouteRepository {
         } catch (e: Exception) {
             e.printStackTrace()
             return@withContext "합류 지점"
+        }
+    }
+
+    /**
+     * [주변 카테고리 검색]
+     * 중심점(x, y) 반경 radius 미터 내의 특정 카테고리 장소들을 찾습니다.
+     * @param categoryCode SW8(역), CE7(카페) 등
+     */
+    suspend fun searchCategory(
+        categoryCode: String,
+        x: Double,
+        y: Double,
+        radius: Int = 2000 // 기본 2km 반경
+    ): List<Place> = withContext(Dispatchers.IO) {
+        try {
+            val response = localApi.searchByCategory(
+                categoryCode = categoryCode,
+                x = x.toString(),
+                y = y.toString(),
+                radius = radius,
+                sort = "distance" // 거리순 정렬
+            )
+            response.documents
+        } catch (e: Exception) {
+            emptyList()
         }
     }
 }

@@ -4,16 +4,20 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.DirectionsWalk
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DirectionsBus
 import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.DirectionsTransit
@@ -47,6 +51,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.graphics.Color
 import androidx.navigation.NavController
 import com.example.gachiga.navigation.AppDestinations
 import com.example.gachiga.data.GachigaState
@@ -143,10 +148,25 @@ fun CommonInfoSection(
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Text("공통 정보", style = MaterialTheme.typography.titleLarge)
         InfoRow(icon = Icons.Default.Flag, title = "목적지") {
-            Button(onClick = {
-                navController.navigate("${AppDestinations.MAP_SELECTION_SCREEN}/destination/-1")
-            }) {
-                Text(state.destination)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Button(onClick = {
+                    navController.navigate("${AppDestinations.MAP_SELECTION_SCREEN}/destination/-1")
+                }) {
+                    Text(state.destination)
+                }
+
+                // ★ [추가] 삭제 버튼 (목적지가 설정되어 있을 때만 표시)
+                if (state.destination != "미설정") {
+                    Spacer(modifier = Modifier.width(4.dp))
+                    IconButton(
+                        onClick = {
+                            // 초기화
+                            onStateChange(state.copy(destination = "미설정", destX = null, destY = null))
+                        }
+                    ) {
+                        Icon(Icons.Default.Close, contentDescription = "목적지 삭제", tint = Color.Gray)
+                    }
+                }
             }
         }
         InfoRow(icon = Icons.Default.Schedule, title = "도착 시간") {
@@ -256,11 +276,27 @@ fun MemberCard(
                     }
                 }
             }
+            // ★ [수정] 출발지 설정 영역
             InfoRow(icon = Icons.Default.MyLocation, title = "출발지") {
-                Button(onClick = {
-                    navController.navigate("${AppDestinations.MAP_SELECTION_SCREEN}/startPoint/$memberIndex")
-                }) {
-                    Text(member.startPoint)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Button(onClick = {
+                        navController.navigate("${AppDestinations.MAP_SELECTION_SCREEN}/startPoint/$memberIndex")
+                    }) {
+                        Text(member.startPoint)
+                    }
+
+                    // ★ [추가] 삭제 버튼 (출발지가 설정되어 있을 때만 표시)
+                    if (member.startPoint != "미설정") {
+                        Spacer(modifier = Modifier.width(4.dp))
+                        IconButton(
+                            onClick = {
+                                // 초기화
+                                onMemberChange(member.copy(startPoint = "미설정", x = null, y = null))
+                            }
+                        ) {
+                            Icon(Icons.Default.Close, contentDescription = "출발지 삭제", tint = Color.Gray)
+                        }
+                    }
                 }
             }
             InfoRow(icon = Icons.Default.DirectionsBus, title = "교통수단") {

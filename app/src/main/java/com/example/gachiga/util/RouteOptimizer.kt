@@ -117,12 +117,12 @@ object RouteOptimizer {
                 // - 만난다고 해서 무조건 태우면 안 됨 (납치 방지, 시간 검증)
                 // -----------------------------------------------------------
                 if (meetPoint != null) {
-                    // A. [납치 방지] 목적지 코앞(500m)에서 만나는 건 무효
+                    // A. [납치 방지] 목적지 코앞(200m)에서 만나는 건 무효
                     // 이유: 도착지 입구에서 경로가 겹치는 것을 '카풀 합류'로 오판하는 버그 방지
                     val destination = pivotRoute.points.last()
                     val distToDest = RouteMath.haversineMeters(meetPoint, destination)
 
-                    if (distToDest > 500) {
+                    if (distToDest > 200) {
                         // B. [시간 검증] 시간적으로 만날 수 있는가?
                         // (현재는 항상 true를 반환하여, '일찍 도착해서 대기하는 시나리오'를 허용함)
                         if (checkTimeCompatibility(pivotRoute, candidateRoute, meetPoint)) {

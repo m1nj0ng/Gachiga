@@ -10,11 +10,10 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
-    <!-- 현재 위치 표시 기능이 필요할 때만 아래 주석 해제 -->
-    <!--
+    <!-- 현재 위치 표시 기능 사용 -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
-    -->
+
 
     <!-- ========================================================= -->
     <!-- [애플리케이션 설정] -->

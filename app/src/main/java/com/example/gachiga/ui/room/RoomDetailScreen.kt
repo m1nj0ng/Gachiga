@@ -47,10 +47,15 @@ fun RoomDetailScreen(
     onStateChange: (RoomDetail) -> Unit,
     onMemberUpdate: (RoomMember) -> Unit,
     onCalculate: () -> Unit,
-    onBackAction: () -> Unit
+    onBackAction: () -> Unit,
+    // ★ [추가] 추천받기 버튼 클릭 시 실행할 함수
+    onRecommend: () -> Unit
 ) {
     val isHost = roomDetail.members.find { it.user.id == loggedInUser.id }?.isHost ?: false
     val allMembersReady = roomDetail.members.all { it.isReady }
+
+    // ★ [조건] 목적지가 아직 정해지지 않았는가?
+    val isDestinationNotSet = (roomDetail.destination == "미설정" || roomDetail.destination.isBlank())
 
     Scaffold(
         topBar = {
@@ -113,24 +118,35 @@ fun RoomDetailScreen(
 
             // 하단 버튼 (방장, 멤버 공통으로 보여주되 방장만 누를 수 있게)
             Button(
-                onClick = { onCalculate() },
+                onClick = {
+                    // ★ 목적지가 없으면 추천, 있으면 계산
+                    if (isDestinationNotSet) onRecommend() else onCalculate()
+                },
 
-                // 활성화 조건: (1)방장, (2)모두 준비 완료, (3)목적지 설정됨
-                enabled = isHost && allMembersReady && roomDetail.destination != "미설정",
+                // 활성화 조건:
+                // 1. 방장이어야 함
+                // 2. 멤버들이 모두 준비 완료 상태여야 함
+                // (목적지 설정 여부는 버튼 종류를 바꾸는 조건이지, 활성화 조건은 아님)
+                enabled = isHost && allMembersReady,
 
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(50.dp),
                 shape = RoundedCornerShape(12.dp),
-                // (선택사항) 비활성화되었을 때 색상 지정 (회색 배경, 진한 회색 글씨)
                 colors = ButtonDefaults.buttonColors(
                     disabledContainerColor = Color.LightGray,
                     disabledContentColor = Color.DarkGray
                 )
             ) {
-                // 방장인지 아닌지에 따라 문구 변경
+                // ★ 문구 변경 로직
+                val buttonText = if (isHost) {
+                    if (isDestinationNotSet) "목적지 추천받기 (투표)" else "중간지점 계산하기"
+                } else {
+                    "방장이 진행할 때까지 대기"
+                }
+
                 Text(
-                    text = if (isHost) "중간지점 계산하기" else "방장이 계산할 때까지 대기",
+                    text = buttonText,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -262,14 +278,42 @@ private fun CommonInfoSection(
     var showTimePicker by remember { mutableStateOf(false) }
 
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+
+        // 1. 목적지 영역 수정
         InfoRow(icon = Icons.Default.Flag, title = "목적지") {
-            Button(
-                onClick = { navController.navigate("${AppDestinations.MAP_SELECTION_SCREEN}/destination/-1?roomId=${roomDetail.roomId}") },
-                enabled = isHost
-            ) {
-                Text(roomDetail.destination)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                // 목적지 버튼
+                Button(
+                    onClick = {
+                        navController.navigate("${AppDestinations.MAP_SELECTION_SCREEN}/destination/-1?roomId=${roomDetail.roomId}")
+                    },
+                    enabled = isHost
+                ) {
+                    Text(roomDetail.destination)
+                }
+
+                // ★ [추가] 삭제 버튼 (방장이고, 목적지가 설정되어 있을 때만 표시)
+                if (isHost && roomDetail.destination != "미설정") {
+                    Spacer(modifier = Modifier.width(4.dp))
+                    IconButton(
+                        onClick = {
+                            // 목적지 초기화 (좌표 0.0, 이름 "미설정")
+                            onStateChange(
+                                roomDetail.copy(
+                                    destination = "미설정",
+                                    destX = 0.0,
+                                    destY = 0.0
+                                )
+                            )
+                        }
+                    ) {
+                        Icon(Icons.Default.Close, contentDescription = "목적지 삭제", tint = Color.Gray)
+                    }
+                }
             }
         }
+
+        // 2. 도착 시간 영역 (기존 동일)
         InfoRow(icon = Icons.Default.Schedule, title = "도착 시간") {
             Button(
                 onClick = { showTimePicker = true },
@@ -284,7 +328,6 @@ private fun CommonInfoSection(
         val initialHour = roomDetail.arrivalTime.substringBefore(":").toIntOrNull() ?: 12
         val initialMinute = roomDetail.arrivalTime.substringAfter(":").toIntOrNull() ?: 0
 
-        // 새로운 TimePickerDialog 호출
         TimePickerDialog(
             initialHour = initialHour,
             initialMinute = initialMinute,
@@ -337,20 +380,41 @@ private fun MemberStatusCard(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // 출발지 설정
+            // ★ [수정] 출발지 설정 영역
             InfoRow(icon = Icons.Default.MyLocation, title = "출발지") {
-                Button(
-                    onClick = {
-                        // 본인 카드일 때만 작동
-                        if (isSelf) {
-                            navController.navigate(
-                                "${AppDestinations.MAP_SELECTION_SCREEN}/startPoint/-1?roomId=${roomId}"
-                            )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Button(
+                        onClick = {
+                            if (isSelf) {
+                                navController.navigate(
+                                    "${AppDestinations.MAP_SELECTION_SCREEN}/startPoint/-1?roomId=${roomId}"
+                                )
+                            }
+                        },
+                        enabled = isSelf
+                    ) {
+                        Text(member.startPoint)
+                    }
+
+                    // ★ [추가] 삭제 버튼 (본인이고, 출발지가 설정되어 있을 때만)
+                    if (isSelf && member.startPoint != "미설정" && member.startPoint != "위치 선택 전") {
+                        Spacer(modifier = Modifier.width(4.dp))
+                        IconButton(
+                            onClick = {
+                                // 출발지 초기화 및 준비 완료 해제
+                                onStateChange(
+                                    member.copy(
+                                        startPoint = "미설정",
+                                        x = 0.0,
+                                        y = 0.0,
+                                        isReady = false // 위치 지우면 준비도 풀려야 함
+                                    )
+                                )
+                            }
+                        ) {
+                            Icon(Icons.Default.Close, contentDescription = "출발지 삭제", tint = Color.Gray)
                         }
-                    },
-                    enabled = isSelf // 본인만 활성화
-                ) {
-                    Text(member.startPoint)
+                    }
                 }
             }
 
