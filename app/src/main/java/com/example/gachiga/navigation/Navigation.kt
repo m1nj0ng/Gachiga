@@ -37,6 +37,17 @@ object AppDestinations {
     const val RESULT_SCREEN = "result"
 }
 
+val USER_COLORS = listOf(
+    0xFF1976D2.toInt(), // 파랑
+    0xFFFF9800.toInt(), // 주황
+    0xFF388E3C.toInt(), // 초록
+    0xFF7B1FA2.toInt(), // 보라
+    0xFF0097A7.toInt(), // 청록
+    0xFFC2185B.toInt(), // 자주
+    0xFF5D4037.toInt(), // 갈색
+    0xFFFFC107.toInt()  // 노랑
+)
+
 @Composable
 fun GachigaApp(
     navController: NavHostController,
@@ -175,7 +186,11 @@ fun GachigaApp(
                                     if (roomData.isCalculating) {
 
                                         // 데이터를 GachigaState으로 변환 (로직용 Member로 변환)
-                                        val convertedMembers = roomData.members.map { roomMember ->
+                                        // ★ [핵심 수정] mapIndexed로 순서에 맞는 색상 부여
+                                        val convertedMembers = roomData.members.mapIndexed { index, roomMember ->
+                                            // 순서대로 색상 꺼내오기 (Int 값 그대로 사용)
+                                            val assignedColor = USER_COLORS[index % USER_COLORS.size]
+
                                             com.example.gachiga.data.Member(
                                                 id = roomMember.user.id.hashCode(),
                                                 name = roomMember.user.nickname,
@@ -184,8 +199,10 @@ fun GachigaApp(
                                                 y = roomMember.y,
                                                 placeName = roomMember.startPoint,
                                                 mode = roomMember.travelMode,
-                                                // 저장된 색상이 있으면 쓰고, 없으면 기본값 파랑(-16776961)
-                                                color = -16776961,
+
+                                                // ★ [수정] 할당된 색상 적용
+                                                color = assignedColor,
+
                                                 carOption = roomMember.carOption,
                                                 publicTransitOption = roomMember.publicTransitOption,
                                                 searchOption = roomMember.searchOption
