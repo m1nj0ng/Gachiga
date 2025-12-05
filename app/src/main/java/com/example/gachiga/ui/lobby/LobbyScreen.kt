@@ -2,6 +2,7 @@ package com.example.gachiga.ui.lobby
 
 import android.util.Log
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -21,6 +22,8 @@ import androidx.navigation.NavController
 import com.example.gachiga.data.LoggedInState
 import com.example.gachiga.data.RoomDetail
 import com.example.gachiga.navigation.AppDestinations
+import com.google.firebase.Firebase
+import com.google.firebase.auth.auth
 import com.kakao.sdk.user.UserApiClient
 import kotlinx.coroutines.launch
 
@@ -36,6 +39,14 @@ fun LobbyScreen(
     val coroutineScope = rememberCoroutineScope()
     var invitationCodeInput by remember { mutableStateOf("") }
     val context = LocalContext.current
+
+    // 뒤로가기 눌렀을 때 띄울 다이얼로그 상태
+    var showLogoutConfirm by remember { mutableStateOf(false) }
+
+    // 시스템 뒤로가기 가로채기
+    BackHandler(enabled = true) {
+        showLogoutConfirm = true
+    }
 
     Scaffold(
         topBar = {
@@ -148,5 +159,46 @@ fun LobbyScreen(
                 }
             )
         }
+    }
+    // 🔹 뒤로가기 시 로그아웃 확인 다이얼로그
+    if (showLogoutConfirm) {
+        AlertDialog(
+            onDismissRequest = { showLogoutConfirm = false },
+            title = { Text("로그아웃") },
+            text = { Text("로그아웃 하시겠습니까?") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showLogoutConfirm = false
+                        coroutineScope.launch {
+                            // Kakao 로그아웃
+                            UserApiClient.instance.logout { error ->
+                                if (error != null) {
+                                    Log.e("KAKAO_LOGOUT", "로그아웃 실패. SDK에서 토큰 삭제됨", error)
+                                } else {
+                                    Log.i("KAKAO_LOGOUT", "로그아웃 성공. SDK에서 토큰 삭제됨")
+                                }
+                                // Firebase 로그아웃
+                                Firebase.auth.signOut()
+
+                                // 시작 화면으로 이동 + 백스택 모두 제거
+                                navController.navigate(AppDestinations.START_SCREEN) {
+                                    popUpTo(navController.graph.id) {
+                                        inclusive = true
+                                    }
+                                }
+                            }
+                        }
+                    }
+                ) {
+                    Text("확인")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showLogoutConfirm = false }) {
+                    Text("취소")
+                }
+            }
+        )
     }
 }

@@ -45,6 +45,7 @@ import com.kakao.vectormap.label.LabelStyles
 @Composable
 fun VoteScreen(
     navController: NavController,
+    roomId: String,
     loggedInUser: User,
     members: List<RoomMember>,
     routes: List<SuggestedRoute>,
@@ -78,7 +79,9 @@ fun VoteScreen(
                             selectedRouteForDetail = null
                         } else {
                             // 목록 화면일 경우 -> 이전 화면(RoomDetailScreen)으로
-                            navController.navigateUp()
+                            navController.navigate("room_detail/$roomId") {
+                                popUpTo("vote_screen") { inclusive = true }
+                            }
                         }
                     }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "뒤로가기")
@@ -166,6 +169,8 @@ private fun VoteListContent(
             itemsIndexed(routes) { index, route ->
                 // 내 정보 찾기
                 val myInfo = members.find { it.user.id == loggedInUser.id }
+                // 내가 투표 완료했거나, 모두 완료했을 때만 결과 보이게
+                val canSeeVotes = (myInfo?.voted == true) || allMembersVoted
                 VoteCard(
                     route = route,
                     rank = index + 1,
@@ -176,7 +181,8 @@ private fun VoteListContent(
                     isTopRoute = route in topRoutes && allMembersVoted,
                     canVote = !allMembersVoted,
                     onShowDetail = { onShowDetail(route) },
-                    myMemberInfo = myInfo // ★ 전달
+                    myMemberInfo = myInfo,
+                    showVotes = canSeeVotes
                 )
             }
         }
@@ -224,7 +230,8 @@ private fun VoteCard(
     canVote: Boolean,
 
     // ★ [추가] 거리 계산을 위해 내 정보를 받습니다.
-    myMemberInfo: RoomMember?
+    myMemberInfo: RoomMember?,
+    showVotes: Boolean
 ) {
     // ★ [로직 추가] 내 위치에서 후보지까지의 직선 거리 계산
     val myDistanceStr = remember(route, myMemberInfo) {
@@ -278,12 +285,19 @@ private fun VoteCard(
 
             Spacer(Modifier.height(4.dp))
 
-            // [중단] 득표수
-            Text(
-                "총 ${route.voters.size}표",
-                color = MaterialTheme.colorScheme.primary,
-                fontWeight = FontWeight.Bold
-            )
+            if (showVotes) {
+                Text(
+                    "총 ${route.voters.size}표",
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Bold
+                )
+            } else {
+                Text(
+                    "투표 진행 중",
+                    color = Color.Gray,
+                    fontWeight = FontWeight.Normal
+                )
+            }
 
             Divider(modifier = Modifier.padding(vertical = 8.dp))
 

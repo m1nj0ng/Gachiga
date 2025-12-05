@@ -31,12 +31,20 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.app.ActivityCompat
+import com.example.gachiga.R
 import com.example.gachiga.network.Place
 import com.example.gachiga.network.RetrofitInstance
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
-import com.kakao.vectormap.*
+import com.kakao.vectormap.KakaoMap
+import com.kakao.vectormap.KakaoMapReadyCallback
+import com.kakao.vectormap.LatLng
+import com.kakao.vectormap.MapLifeCycleCallback
+import com.kakao.vectormap.MapView
 import com.kakao.vectormap.camera.CameraUpdateFactory
+import com.kakao.vectormap.label.LabelOptions
+import com.kakao.vectormap.label.LabelStyle
+import com.kakao.vectormap.label.LabelStyles
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
@@ -48,7 +56,16 @@ fun MapSelectionScreen(
 ) {
     var searchQuery by remember { mutableStateOf("") }
     var searchResults by remember { mutableStateOf<List<Place>>(emptyList()) }
-    var selectedPlace by remember { mutableStateOf<Place?>(null) }
+
+    // 하나의 통합 선택 상태
+    data class SelectedLocation(
+        val name: String,
+        val address: String?,
+        val latLng: LatLng
+    )
+
+    var selectedLocation by remember { mutableStateOf<SelectedLocation?>(null) }
+
     var kakaoMap by remember { mutableStateOf<KakaoMap?>(null) }
 
     val coroutineScope = rememberCoroutineScope()
@@ -63,6 +80,25 @@ fun MapSelectionScreen(
     val KAKAO_API_KEY = "KakaoAK 7544546b4955f1a8476537614a2a74bf"
 
     // -----------------------------------------------------------
+    // 공통: 지도에 핀 찍는 함수
+    // -----------------------------------------------------------
+    fun addMarkerToMap(position: LatLng) {
+        val map = kakaoMap ?: return
+        val labelManager = map.labelManager ?: return
+
+        // 이전 라벨 제거
+        labelManager.layer?.removeAll()
+
+        val styles = labelManager.addLabelStyles(
+            LabelStyles.from(
+                LabelStyle.from(R.drawable.ic_map_pin)
+            )
+        )
+        val options = LabelOptions.from(position).setStyles(styles)
+        labelManager.layer?.addLabel(options)
+    }
+
+    // -----------------------------------------------------------
     // [Function] 키워드 검색
     // -----------------------------------------------------------
     fun performSearch() {
@@ -73,6 +109,7 @@ fun MapSelectionScreen(
                     searchResults = response.documents
                 } catch (e: Exception) {
                     Log.e("MapSelectionScreen", "API Error: ${e.message}")
+                    Toast.makeText(context, "검색 중 오류가 발생했습니다.", Toast.LENGTH_SHORT).show()
                 }
             }
             keyboardController?.hide()
@@ -107,9 +144,20 @@ fun MapSelectionScreen(
                         ?: document?.address?.addressName
                         ?: "현재 위치"
 
-                    // 4. 선택 완료 처리 (바로 이전 화면으로 복귀)
-                    onLocationSelected(addressName, LatLng.from(lat, lng))
+                    val latLng = LatLng.from(lat, lng)
 
+                    // 상태 갱신 + 핀 표시
+                    selectedLocation = SelectedLocation(
+                        name = addressName,
+                        address = addressName,
+                        latLng = latLng
+                    )
+                    addMarkerToMap(latLng)
+                    kakaoMap?.moveCamera(
+                        CameraUpdateFactory.newCenterPosition(latLng, 16)
+                    )
+
+                    searchResults = emptyList()
                 } else {
                     Toast.makeText(context, "위치 정보를 가져올 수 없습니다.", Toast.LENGTH_SHORT).show()
                 }
@@ -154,7 +202,9 @@ fun MapSelectionScreen(
             modifier = Modifier
                 .padding(paddingValues)
                 .fillMaxSize()
-                .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal))
+                .windowInsetsPadding(
+                    WindowInsets.systemBars.only(WindowInsetsSides.Horizontal)
+                )
         ) {
             // 상단 검색 영역 (Row로 감싸서 버튼 배치)
             Row(
@@ -219,12 +269,36 @@ fun MapSelectionScreen(
                             }, object : KakaoMapReadyCallback() {
                                 override fun onMapReady(map: KakaoMap) {
                                     kakaoMap = map
-                                    map.setOnMapClickListener { _, _, _, _ ->
-                                        searchResults = emptyList()
-                                        selectedPlace = null
+
+                                    // 지도 클릭 시: 역지오코딩 + 선택 카드 표시
+                                    map.setOnMapClickListener { _, latLng, _, _ ->
+                                        coroutineScope.launch {
+                                            try {
+                                                val res = RetrofitInstance.api.coord2address(
+                                                    apiKey = KAKAO_API_KEY,
+                                                    x = latLng.longitude.toString(),
+                                                    y = latLng.latitude.toString()
+                                                )
+                                                val doc = res.documents.firstOrNull()
+                                                val addr = doc?.roadAddress?.addressName
+                                                    ?: doc?.address?.addressName
+                                                    ?: "선택한 위치"
+
+                                                selectedLocation = SelectedLocation(
+                                                    name = addr,
+                                                    address = addr,
+                                                    latLng = latLng
+                                                )
+                                                addMarkerToMap(latLng)
+                                                searchResults = emptyList()
+                                            } catch (e: Exception) {
+                                                Log.e("MapSelection", "Reverse geocoding error", e)
+                                            }
+                                        }
                                     }
                                 }
-                                override fun getZoomLevel(): Int { return 16 }
+
+                                override fun getZoomLevel(): Int = 16
                             })
                         }
                     },
@@ -245,11 +319,27 @@ fun MapSelectionScreen(
                                 headlineContent = {
                                     Text(place.placeName, fontWeight = FontWeight.Bold)
                                 },
-                                supportingContent = { Text(place.roadAddressName.ifEmpty { place.addressName }) },
+                                supportingContent = {
+                                    Text(place.roadAddressName.ifEmpty { place.addressName }
+                                    )
+                                },
                                 modifier = Modifier.clickable {
-                                    selectedPlace = place
-                                    val position = LatLng.from(place.latitude.toDouble(), place.longitude.toDouble())
-                                    kakaoMap?.moveCamera(CameraUpdateFactory.newCenterPosition(position, 16))
+                                    val position = LatLng.from(
+                                        place.latitude.toDouble(),
+                                        place.longitude.toDouble()
+                                    )
+
+                                    selectedLocation = SelectedLocation(
+                                        name = place.placeName,
+                                        address = place.roadAddressName.ifBlank { place.addressName },
+                                        latLng = position
+                                    )
+
+                                    kakaoMap?.moveCamera(
+                                        CameraUpdateFactory.newCenterPosition(position, 16)
+                                    )
+                                    addMarkerToMap(position)
+
                                     searchResults = emptyList()
                                 }
                             )
@@ -258,21 +348,44 @@ fun MapSelectionScreen(
                     }
                 }
 
-                // 최종 선택 버튼 (장소 선택 시)
-                selectedPlace?.let { place ->
-                    Button(
-                        onClick = {
-                            onLocationSelected(
-                                place.placeName,
-                                LatLng.from(place.latitude.toDouble(), place.longitude.toDouble())
-                            )
-                        },
+                // 🔻 아래 카드: 선택된 장소 정보 + 설정 버튼
+                selectedLocation?.let { sel ->
+                    Card(
                         modifier = Modifier
                             .align(Alignment.BottomCenter)
                             .padding(16.dp)
                             .fillMaxWidth()
+                            .windowInsetsPadding(WindowInsets.navigationBars),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
                     ) {
-                        Text("'${place.placeName}'으로 설정")
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                sel.name,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            sel.address?.let {
+                                Text(
+                                    it,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = Color.Gray
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            Button(
+                                onClick = {
+                                    onLocationSelected(sel.name, sel.latLng)
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text("이 위치로 설정")
+                            }
+                        }
                     }
                 }
             }

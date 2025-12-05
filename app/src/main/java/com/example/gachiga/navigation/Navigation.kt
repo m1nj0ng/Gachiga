@@ -275,6 +275,7 @@ fun GachigaApp(
                 }
 
                 if (roomDetailState != null) {
+                    val nonNullRoomId = roomId!!
                     // 추천 경로가 비어있으면 -> 방 상세 화면 (대기방)
                     if (roomDetailState!!.suggestedRoutes.isEmpty()) {
                         RoomDetailScreen(
@@ -379,9 +380,11 @@ fun GachigaApp(
                     } else {
                         // 추천 경로(suggestedRoutes)가 있으면 -> 투표 화면 (VoteScreen)
                         val isHost = roomDetailState!!.members.find { it.user.id == currentUser.id }?.isHost ?: false
+                        val roomId = backStackEntry.arguments?.getString("roomId") ?: ""
 
                         VoteScreen(
                             navController = navController,
+                            roomId = nonNullRoomId,
                             loggedInUser = currentUser,
                             members = roomDetailState!!.members,
                             routes = roomDetailState!!.suggestedRoutes,
@@ -411,7 +414,7 @@ fun GachigaApp(
                             onVoteComplete = { userId ->
                                 val updatedMember = roomDetailState!!.members.find { it.user.id == userId }?.copy(voted = true)
                                 if (updatedMember != null) {
-                                    updateMemberInFirestore(roomId, updatedMember) {}
+                                    updateMemberInFirestore(nonNullRoomId, updatedMember) { _ -> }
                                 }
                             },
 
@@ -421,13 +424,14 @@ fun GachigaApp(
                                 if (selectedRoute != null) {
                                     // 1. 목적지를 선택된 장소로 설정
                                     // 2. 추천 리스트 비우기 (-> 다시 RoomDetailScreen으로 돌아감)
-                                    val updates = mapOf(
+                                    val updates: MutableMap<String, Any> = mutableMapOf(
                                         "destination" to selectedRoute.placeName,
                                         "destX" to selectedRoute.longitude,
-                                        "destY" to selectedRoute.latitude,
-                                        "suggestedRoutes" to emptyList<SuggestedRoute>()
+                                        "destY" to selectedRoute.latitude
                                     )
-                                    updateRoomInFirestore(roomId, updates) {}
+
+                                    updates["suggestedRoutes"] = emptyList<Any>()
+                                    updateRoomInFirestore(nonNullRoomId, updates) { _ -> }
                                 }
                             }
                         )
