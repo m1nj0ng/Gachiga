@@ -59,6 +59,10 @@ data class RoomMember(
     val publicTransitOption: PublicTransitOption = PublicTransitOption.OPTIMAL,
     var searchOption: Int = 0,
 
+    // 추가: 상태 메시지와 변경 시간
+    val statusMessage: String = "준비 중",
+    val statusUpdateTime: Long = 0L,
+
     // Firebase가 'is'로 시작하는 변수를 잘 읽게 해주기 위한 태그 추가
     @field:JvmField
     val isReady: Boolean = false,

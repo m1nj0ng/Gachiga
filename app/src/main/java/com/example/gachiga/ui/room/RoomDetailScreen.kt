@@ -57,6 +57,29 @@ fun RoomDetailScreen(
     // ★ [조건] 목적지가 아직 정해지지 않았는가?
     val isDestinationNotSet = (roomDetail.destination == "미설정" || roomDetail.destination.isBlank())
 
+    // 추가: 상태 변경 감지 및 알림
+    val context = LocalContext.current
+    LaunchedEffect(roomDetail) {
+        val currentTime = System.currentTimeMillis()
+
+        roomDetail.members.forEach { member ->
+            // 조건 1: 본인는 알림 안뜨게 제외)
+            if (member.user.id != loggedInUser.id) {
+
+                // 조건 2: 방금(2초 이내) 바뀐 것만 알림 (옛날 메시지 방지)
+                val timeDiff = currentTime - member.statusUpdateTime
+
+                if (timeDiff < 2000 && member.statusUpdateTime > 0) {
+                    Toast.makeText(
+                        context,
+                        "${member.user.nickname}: ${member.statusMessage}",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -561,6 +584,64 @@ private fun MemberStatusCard(
                     // 도보는 옵션 없음
                 }
             }
+
+            // 추가: 상태 메시지 변경 버튼 (본인) / 상태 표시 (타인)
+            // =================================================================
+
+            // 구분선 (디자인을 위해 살짝 추가)
+            HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
+
+            if (isSelf) {
+                // [나일 때] 상태를 변경할 수 있는 버튼과 드롭다운 메뉴
+                var statusMenuExpanded by remember { mutableStateOf(false) }
+                val statusOptions = listOf("준비 중", "가는 중", "버스 탑승", "지하철 탑승", "곧 도착", "도착 완료")
+
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    OutlinedButton(
+                        onClick = { statusMenuExpanded = true },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("상태 공유: ${member.statusMessage}")
+                    }
+
+                    DropdownMenu(
+                        expanded = statusMenuExpanded,
+                        onDismissRequest = { statusMenuExpanded = false }
+                    ) {
+                        statusOptions.forEach { status ->
+                            DropdownMenuItem(
+                                text = { Text(status) },
+                                onClick = {
+                                    // 상태와 변경 시간을 함께 업데이트
+                                    onStateChange(
+                                        member.copy(
+                                            statusMessage = status,
+                                            statusUpdateTime = System.currentTimeMillis()
+                                        )
+                                    )
+                                    statusMenuExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+            } else {
+                // [다른 사람일 때] 현재 상태를 텍스트로 보여줌
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("현재 상태: ", style = MaterialTheme.typography.bodyMedium, color = Color.Gray)
+                    Text(
+                        text = member.statusMessage,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+            // =================================================================
 
             // 준비 완료 버튼 (본인만 보임)
             if (isSelf && !member.isReady) {
