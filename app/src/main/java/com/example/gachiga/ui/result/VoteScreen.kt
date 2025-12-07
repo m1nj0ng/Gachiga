@@ -1,5 +1,6 @@
 package com.example.gachiga.ui.result
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -52,7 +53,8 @@ fun VoteScreen(
     isHost: Boolean,
     onVote: (routeId: String, userId: String) -> Unit,
     onVoteComplete: (userId: String) -> Unit,
-    onFinalSelect: (routeId: String) -> Unit
+    onFinalSelect: (routeId: String) -> Unit,
+    onBackToRoom: () -> Unit
 ) {
     var selectedRouteForDetail by remember { mutableStateOf<SuggestedRoute?>(null) }
     val me = members.find { it.user.id == loggedInUser.id }
@@ -62,6 +64,15 @@ fun VoteScreen(
     val topRoutes = routes.filter { (voteCounts[it.id] ?: 0) == maxVote && maxVote > 0 }
     val isFinalButtonEnabled =
         maxVote > 0 && (topRoutes.size == 1 || (topRoutes.size > 1 && isHost))
+
+    // 뒤로가기 버튼
+    BackHandler(enabled = true) {
+        if (selectedRouteForDetail != null) {
+            selectedRouteForDetail = null     // 지도 상세 보고 있었다면 목록으로만 돌아가기
+        } else {
+            onBackToRoom()                    // 그게 아니면 방 화면으로 돌아가도록 요청
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -78,10 +89,7 @@ fun VoteScreen(
                             // 지도 화면일 경우 -> 목록화면으로 (상세보기 해제)
                             selectedRouteForDetail = null
                         } else {
-                            // 목록 화면일 경우 -> 이전 화면(RoomDetailScreen)으로
-                            navController.navigate("room_detail/$roomId") {
-                                popUpTo("vote_screen") { inclusive = true }
-                            }
+                            onBackToRoom()
                         }
                     }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "뒤로가기")

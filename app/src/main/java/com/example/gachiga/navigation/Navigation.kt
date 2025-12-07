@@ -448,7 +448,33 @@ fun GachigaApp(
                                     )
 
                                     updates["suggestedRoutes"] = emptyList<Any>()
-                                    updateRoomInFirestore(nonNullRoomId, updates) { _ -> }
+                                    updates["isCalculating"] = false
+
+                                    updateRoomInFirestore(roomId, updates) {}
+                                }
+                            },
+
+                            // 🔹 [새로 추가] 투표 화면에서 "뒤로가기" 했을 때 처리
+                            onBackToRoom = {
+                                val current = roomDetailState
+                                if (current != null) {
+                                    // 1) 로컬 state 리셋
+                                    val resetMembers = current.members.map { it.copy(voted = false) }
+                                    roomDetailState = current.copy(
+                                        suggestedRoutes = emptyList(),
+                                        members = resetMembers
+                                    )
+
+                                    // 2) Firestore에 투표 추천 목록 & 계산 상태 & voted 플래그 리셋
+                                    val updates: MutableMap<String, Any> = mutableMapOf(
+                                        "suggestedRoutes" to emptyList<Any>(),
+                                        "isCalculating" to false
+                                    )
+                                    updateRoomInFirestore(roomId, updates) {}
+
+                                    resetMembers.forEach { m ->
+                                        updateMemberInFirestore(roomId, m) {}
+                                    }
                                 }
                             }
                         )
