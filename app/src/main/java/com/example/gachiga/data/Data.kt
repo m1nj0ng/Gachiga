@@ -119,3 +119,21 @@ enum class PublicTransitOption(val displayName: String) {
     FASTEST("최소 시간"),
     LEAST_WALKING("최소 도보")
 }
+
+/**
+ * [계산 결과 컨테이너]
+ * RouteLogicManager가 계산한 데이터를 UI로 운반하는 택배 상자
+ * - 전체/개인 데이터를 분리해서 저장합니다.
+ */
+data class CalculationResult(
+    val fullLog: String = "",
+    val myLog: String? = null,
+    val myPathPoints: List<com.kakao.vectormap.LatLng>? = null,
+    val allRoutes: Map<Int, TransitPathSegment> = emptyMap(),
+    val rawTransitPaths: Map<Int, List<TransitPathSegment>> = emptyMap(),
+    val allPointsForCamera: List<com.kakao.vectormap.LatLng> = emptyList(),
+
+    // ★ [추가] 빨간 선(합류 구간) 복구용 데이터
+    // (Pair<좌표리스트, 대중교통여부>)
+    val redLines: List<Pair<List<com.kakao.vectormap.LatLng>, Boolean>> = emptyList()
+)

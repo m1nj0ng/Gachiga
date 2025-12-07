@@ -174,4 +174,19 @@ class RouteVisualizer(private val kakaoMap: KakaoMap) {
             Color.parseColor(if (c.startsWith("#")) c else "#$c")
         } catch (e: Exception) { COLOR_DEFAULT_TRANSIT }
     }
+
+    /**
+     * ★ [추가] 내 경로만 집중해서 그리기 (Focus Mode)
+     * - 기존 경로 지우기 + 내 경로 그리기 + 카메라 이동을 한 번에 수행
+     */
+    fun drawFocusedRoute(points: List<LatLng>, userColor: Int) {
+        // 1. 기존에 그려진 모든 선 지우기
+        clear()
+
+        // 2. 내 경로 하나만 다시 그리기 (이중선 스타일 적용)
+        drawPolyline(points, userColor)
+
+        // 3. 카메라를 내 경로에 맞춰서 줌인(Zoom-in)
+        moveCameraToFit(points)
+    }
 }

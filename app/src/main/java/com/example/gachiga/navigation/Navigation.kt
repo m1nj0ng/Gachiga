@@ -597,7 +597,11 @@ fun GachigaApp(
                         updateRoomInFirestore(currentRoomId, mapOf("isCalculating" to false)) {}
                     }
                     navController.popBackStack()
-                }
+                },
+                // 1순위: 로그인한 유저 ID (Firebase)
+                // 2순위: 없으면 그냥 멤버 리스트의 첫 번째 사람을 '나'로 간주 (비로그인 테스트용)
+                // 아래 주석 지우면 로그인/비로그인 모두 "내 경로만 자세히 보기" 가능
+                currentUserId = loggedInState.currentUser?.id?.hashCode()//?: nonLoggedInState.members.firstOrNull()?.id
             )
         }
     }
