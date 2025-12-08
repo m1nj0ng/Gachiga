@@ -43,7 +43,7 @@ class RouteLogicManager(private val repository: RouteRepository) {
         val timeFormat = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault())
         val now = Calendar.getInstance()
 
-        // [Phase 1] API 데이터 수집 (작성자님이 주신 코드 그대로 사용)
+        // [Phase 1] API 데이터 수집
         for (u in members) {
             val sx = u.x ?: continue
             val sy = u.y ?: continue
@@ -60,7 +60,7 @@ class RouteLogicManager(private val repository: RouteRepository) {
                         val list = repository.fetchTransitOptions(sx, sy, destX, destY, u.searchOption)
                         val best = list.firstOrNull()
                         if (best?.path != null) {
-                            // (작성자님이 주신 갭 채우기 로직)
+                            // (갭 채우기 로직)
                             val filledPath = best.path.mapIndexed { index, segment ->
                                 if (segment.mode == "WALK" && segment.points.isEmpty()) {
                                     val startPos = if (index == 0) LatLng.from(sy, sx) else best.path[index - 1].points.lastOrNull() ?: LatLng.from(sy, sx)
