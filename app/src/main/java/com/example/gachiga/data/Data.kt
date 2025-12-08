@@ -123,17 +123,22 @@ enum class PublicTransitOption(val displayName: String) {
 /**
  * [계산 결과 컨테이너]
  * RouteLogicManager가 계산한 데이터를 UI로 운반하는 택배 상자
- * - 전체/개인 데이터를 분리해서 저장합니다.
  */
 data class CalculationResult(
     val fullLog: String = "",
     val myLog: String? = null,
-    val myPathPoints: List<com.kakao.vectormap.LatLng>? = null,
+
+    // [내 경로 모드용]
+    val myPathPoints: List<com.kakao.vectormap.LatLng>? = null, // 합류 전 (내 색깔)
+    val myRedPathPoints: List<com.kakao.vectormap.LatLng>? = null, // ★ [추가] 합류 후 (빨간색)
+
+    // [전체 복구 모드용]
     val allRoutes: Map<Int, TransitPathSegment> = emptyMap(),
     val rawTransitPaths: Map<Int, List<TransitPathSegment>> = emptyMap(),
     val allPointsForCamera: List<com.kakao.vectormap.LatLng> = emptyList(),
+    val redLines: List<Pair<List<com.kakao.vectormap.LatLng>, Boolean>> = emptyList(), // 빨간선 복구용
 
-    // ★ [추가] 빨간 선(합류 구간) 복구용 데이터
-    // (Pair<좌표리스트, 대중교통여부>)
-    val redLines: List<Pair<List<com.kakao.vectormap.LatLng>, Boolean>> = emptyList()
+    // ★ [추가] 각 멤버별 경로 자르는 지점 (ID -> Index)
+    // 이 정보가 있어야 전체 화면 복구 시 내 경로가 빨간선 위를 덮지 않게(Ghost Path 방지) 자를 수 있습니다.
+    val memberCutIndices: Map<Int, Int> = emptyMap()
 )

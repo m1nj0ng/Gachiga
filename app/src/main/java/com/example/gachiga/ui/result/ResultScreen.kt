@@ -76,7 +76,9 @@ fun ResultScreen(
             if (res.myPathPoints != null && res.myLog != null) {
                 calculationLog = res.myLog!!
                 val myColor = gachigaState.members.find { it.id == currentUserId }?.color ?: 0xFF1976D2.toInt()
-                viz.drawFocusedRoute(res.myPathPoints, myColor)
+
+                // ★ [수정] 파란 경로와 빨간 경로를 함께 전달하여 그림
+                viz.drawFocusedRoute(res.myPathPoints, res.myRedPathPoints, myColor)
             } else {
                 isMyRouteMode = false // 데이터 없으면 강제 복귀
             }
@@ -84,24 +86,32 @@ fun ResultScreen(
             // [B] 전체 모드 복구
             calculationLog = res.fullLog
 
-            calculationLog = res.fullLog
-
             // 1. 지도 깨끗이 지우기
             viz.clear()
 
-            // 2. 파란색/초록색 멤버 경로 복구 (기존 코드)
+            // 2. 파란색/초록색 멤버 경로 복구
             res.allRoutes.forEach { (memberId, segment) ->
                 val member = gachigaState.members.find { it.id == memberId } ?: return@forEach
                 val rawPaths = res.rawTransitPaths[memberId]
 
+                // ★ [추가] 자르는 위치 가져오기 (없으면 끝까지)
+                val cutIdx = res.memberCutIndices[memberId] ?: Int.MAX_VALUE
+
                 if (member.mode == TravelMode.TRANSIT) {
-                    viz.drawTransitRouteCut(rawPaths ?: emptyList(), Int.MAX_VALUE, member.color)
+                    // ★ [수정] 잘라야 하는 위치(cutIdx)를 전달
+                    viz.drawTransitRouteCut(rawPaths ?: emptyList(), cutIdx, member.color)
                 } else {
-                    viz.drawPolyline(segment.points, member.color)
+                    // ★ [수정] 자동차/도보도 cutIdx 지점까지만 잘라서 그리기 (유령 경로 방지)
+                    val pointsToDraw = if (cutIdx != Int.MAX_VALUE && cutIdx < segment.points.size) {
+                        segment.points.take(cutIdx + 1)
+                    } else {
+                        segment.points
+                    }
+                    viz.drawPolyline(pointsToDraw, member.color)
                 }
             }
 
-            // ★ [추가] 3. 빨간색 합류선(Red Lines) 복구
+            // 3. 빨간색 합류선(Red Lines) 복구
             res.redLines.forEach { (points, isTransitLeader) ->
                 viz.drawRedLine(points, isTransitLeader)
             }

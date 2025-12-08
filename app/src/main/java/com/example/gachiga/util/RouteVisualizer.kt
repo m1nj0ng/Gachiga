@@ -176,17 +176,28 @@ class RouteVisualizer(private val kakaoMap: KakaoMap) {
     }
 
     /**
-     * ★ [추가] 내 경로만 집중해서 그리기 (Focus Mode)
-     * - 기존 경로 지우기 + 내 경로 그리기 + 카메라 이동을 한 번에 수행
+     * ★ [수정] 내 경로만 집중해서 그리기 (Focus Mode)
+     * - 인자 추가: redPoints (합류 후 경로)
      */
-    fun drawFocusedRoute(points: List<LatLng>, userColor: Int) {
-        // 1. 기존에 그려진 모든 선 지우기
+    fun drawFocusedRoute(
+        myPoints: List<LatLng>,
+        redPoints: List<LatLng>?,
+        userColor: Int,
+        isTransitLeader: Boolean = false // 빨간선 스타일 결정용 (대중교통 대장인지)
+    ) {
+        // 1. 기존 그림 싹 지우기
         clear()
 
-        // 2. 내 경로 하나만 다시 그리기 (이중선 스타일 적용)
-        drawPolyline(points, userColor)
+        // 2. 내 경로(합류 전) 그리기 - 파란색
+        drawPolyline(myPoints, userColor)
 
-        // 3. 카메라를 내 경로에 맞춰서 줌인(Zoom-in)
-        moveCameraToFit(points)
+        // 3. 합류 후 경로(빨간색) 그리기 - 있다면
+        if (redPoints != null && redPoints.isNotEmpty()) {
+            drawRedLine(redPoints, isTransitLeader)
+        }
+
+        // 4. 카메라 이동 (내 경로 + 빨간 경로 모두 포함하도록)
+        val allPoints = if (redPoints != null) myPoints + redPoints else myPoints
+        moveCameraToFit(allPoints)
     }
 }
