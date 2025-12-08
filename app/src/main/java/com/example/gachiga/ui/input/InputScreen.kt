@@ -120,17 +120,30 @@ fun InputScreen(
                     onStateChange(gachigaState.copy(members = updatedMembers))
                 }
             )
+            // ★ [수정] 목적지 설정 여부에 따라 버튼 기능 및 텍스트 변경
+            val isDestinationSet = gachigaState.destination != "미설정"
+
             Button(
                 onClick = {
-                    navController.navigate(AppDestinations.RESULT_SCREEN)
+                    if (isDestinationSet) {
+                        // [Case 1] 목적지 있음 -> 결과 화면으로 (계산)
+                        navController.navigate(AppDestinations.RESULT_SCREEN)
+                    } else {
+                        // [Case 2] 목적지 없음 -> 추천 선택 화면으로 (이동)
+                        navController.navigate(AppDestinations.MIDPOINT_SELECT_SCREEN)
+                    }
                 },
-                enabled = allStartPointsSet && gachigaState.destination != "미설정",
+                // 활성화 조건: 출발지가 모두 설정되어 있어야 함 (추천이든 계산이든 위치가 필요하므로)
+                enabled = allStartPointsSet,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 16.dp),
                 shape = RoundedCornerShape(12.dp)
             ) {
-                Text("중간지점 찾기!", fontSize = 18.sp)
+                Text(
+                    text = if (isDestinationSet) "중간지점 계산하기" else "목적지 추천받기",
+                    fontSize = 18.sp
+                )
             }
         }
     }

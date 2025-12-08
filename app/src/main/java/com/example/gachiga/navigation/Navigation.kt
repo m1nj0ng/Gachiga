@@ -23,6 +23,7 @@ import com.google.firebase.functions.functions
 import androidx.navigation.NavType
 import android.widget.Toast
 import androidx.navigation.navArgument
+import com.example.gachiga.ui.input.MidpointSelectScreen
 import com.example.gachiga.util.RouteLogicManager
 import com.kakao.vectormap.LatLng
 import com.google.firebase.firestore.SetOptions
@@ -35,6 +36,7 @@ object AppDestinations {
     const val MAP_SELECTION_SCREEN = "map_selection"
     const val ROOM_DETAIL_SCREEN = "room_detail/{roomId}"
     const val RESULT_SCREEN = "result"
+    const val MIDPOINT_SELECT_SCREEN = "midpoint_select"
 }
 
 val USER_COLORS = listOf(
@@ -154,6 +156,27 @@ fun GachigaApp(
                 navController = navController,
                 gachigaState = nonLoggedInState,
                 onStateChange = onNonLoggedInStateChange
+            )
+        }
+
+        // ★ [추가] 추천 장소 선택 화면 연결
+        composable(AppDestinations.MIDPOINT_SELECT_SCREEN) {
+            MidpointSelectScreen(
+                navController = navController,
+                repository = repository,
+                members = nonLoggedInState.members,
+                onPlaceSelected = { place ->
+                    // 1. 선택된 장소 정보로 상태 업데이트
+                    onNonLoggedInStateChange(
+                        nonLoggedInState.copy(
+                            destination = place.placeName,
+                            destX = place.longitude,
+                            destY = place.latitude
+                        )
+                    )
+                    // 2. 입력 화면으로 복귀
+                    navController.popBackStack()
+                }
             )
         }
 
