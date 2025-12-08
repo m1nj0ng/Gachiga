@@ -1,5 +1,6 @@
 package com.example.gachiga.ui.result
 
+import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -28,7 +29,9 @@ import com.kakao.vectormap.MapView
 import kotlinx.coroutines.launch
 import java.util.Calendar
 import androidx.activity.compose.BackHandler
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -39,6 +42,24 @@ fun ResultScreen(
     onBackToEdit: () -> Unit, // 추가: Navigation에서 넘겨준 뒤로 가기 함수 받음
     currentUserId: Int? = null // ★ [추가] 내 ID를 알아야 내 경로를 찾습니다.
 ) {
+    // ★ 공유용 Context
+    val context = LocalContext.current
+
+    // ★ 결과 공유 함수
+    fun shareResult(text: String) {
+        if (text.isBlank()) return
+
+        val sendIntent = Intent().apply {
+            action = Intent.ACTION_SEND
+            type = "text/plain"
+            putExtra(Intent.EXTRA_SUBJECT, "Gachiga 중간지점 결과")
+            putExtra(Intent.EXTRA_TEXT, text)
+        }
+
+        val shareIntent = Intent.createChooser(sendIntent, "결과를 공유할 앱을 선택하세요")
+        context.startActivity(shareIntent)
+    }
+
     // 1. 로직 매니저 생성
     val logicManager = remember { RouteLogicManager(repository) }
 
@@ -241,6 +262,32 @@ fun ResultScreen(
                             style = MaterialTheme.typography.bodyMedium
                         )
                     }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // 비로그인(= currentUserId == null)일 때만 결과 공유 버튼 표시
+                if (currentUserId == null) {
+                    Button(
+                        onClick = { shareResult(calculationLog) },
+                        enabled = !isCalculating && calculationLog.isNotBlank(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Share,
+                            contentDescription = "결과 공유"
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "결과 공유하기",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
                 }
 
                 // ★ [추가] 하단 토글 버튼 (내 경로 데이터가 있을 때만 표시)
