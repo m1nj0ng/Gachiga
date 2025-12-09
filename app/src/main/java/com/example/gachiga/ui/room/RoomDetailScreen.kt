@@ -48,6 +48,7 @@ fun RoomDetailScreen(
     onMemberUpdate: (RoomMember) -> Unit,
     onCalculate: () -> Unit,
     onBackAction: () -> Unit,
+    onLeaveRoom: () -> Unit,
     // ★ [추가] 추천받기 버튼 클릭 시 실행할 함수
     onRecommend: () -> Unit
 ) {
@@ -80,6 +81,10 @@ fun RoomDetailScreen(
         }
     }
 
+    androidx.activity.compose.BackHandler {
+        onBackAction()
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -89,6 +94,16 @@ fun RoomDetailScreen(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "뒤로가기"
+                        )
+                    }
+                },
+
+                actions = {
+                    IconButton(onClick = onLeaveRoom) {
+                        Icon(
+                            imageVector = Icons.Default.ExitToApp,
+                            contentDescription = "방 나가기",
+                            tint = Color.Red // 경고색
                         )
                     }
                 }

@@ -26,6 +26,11 @@ import com.google.firebase.Firebase
 import com.google.firebase.auth.auth
 import com.kakao.sdk.user.UserApiClient
 import kotlinx.coroutines.launch
+import com.google.firebase.firestore.firestore
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.clickable
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -40,12 +45,33 @@ fun LobbyScreen(
     var invitationCodeInput by remember { mutableStateOf("") }
     val context = LocalContext.current
 
+    var myRooms by remember { mutableStateOf<List<RoomDetail>>(emptyList()) }
+    val currentUser = state.currentUser
+
     // 뒤로가기 눌렀을 때 띄울 다이얼로그 상태
     var showLogoutConfirm by remember { mutableStateOf(false) }
 
     // 시스템 뒤로가기 가로채기
     BackHandler(enabled = true) {
         showLogoutConfirm = true
+    }
+
+    LaunchedEffect(currentUser) {
+        if (currentUser != null) {
+            val db = Firebase.firestore
+
+            // memberIds 배열에 내 ID가 있는 방을 실시간 감시
+            db.collection("rooms")
+                .whereArrayContains("memberIds", currentUser.id)
+                .addSnapshotListener { snapshot, e ->
+                    if (e != null) return@addSnapshotListener
+                    if (snapshot != null) {
+                        val rooms = snapshot.documents.mapNotNull { it.toObject(RoomDetail::class.java) }
+                        // 방 ID 순(대략 최신순) 정렬
+                        myRooms = rooms.sortedByDescending { it.roomId }
+                    }
+                }
+        }
     }
 
     Scaffold(
@@ -158,6 +184,47 @@ fun LobbyScreen(
                     }
                 }
             )
+
+            HorizontalDivider(
+                modifier = Modifier.padding(vertical = 16.dp), // 위, 아래 32dp씩 띄우기
+                thickness = 1.dp,
+                color = Color.LightGray
+            )
+
+            // [추가] 내 참여 목록 (히스토리) UI
+            Text(
+                "참여 중인 약속",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                // ▼▼▼ [수정] 아래쪽에 16dp 만큼 여백 추가 ▼▼▼
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
+
+            if (myRooms.isEmpty()) {
+                Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    Text("참여 중인 방이 없습니다.", color = Color.Gray)
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    items(myRooms) { room ->
+                        Card(
+                            modifier = Modifier.fillMaxWidth().clickable {
+                                // 클릭 시 해당 방으로 재입장 (코드 입력 불필요)
+                                navController.navigate("room_detail/${room.roomId}")
+                            },
+                            elevation = CardDefaults.cardElevation(2.dp)
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Text("목적지: ${room.destination}", fontWeight = FontWeight.Bold)
+                                Text("코드: ${room.invitationCode}", color = Color.Gray)
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
     // 🔹 뒤로가기 시 로그아웃 확인 다이얼로그

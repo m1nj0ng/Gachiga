@@ -256,8 +256,14 @@ fun GachigaApp(
                         }
                 }
 
-                // 뒤로 가기/방 나가기 로직
                 val handleBackAction = {
+                    navController.navigate(AppDestinations.LOBBY_SCREEN) {
+                        popUpTo(AppDestinations.LOBBY_SCREEN) { inclusive = true }
+                    }
+                }
+
+                // 뒤로 가기/방 나가기 로직
+                val handleLeaveRoom = {
                     if (roomDetailState != null) {
                         val members = roomDetailState!!.members
                         val isHost = members.find { it.user.id == currentUser.id }?.isHost ?: false
@@ -284,7 +290,7 @@ fun GachigaApp(
                             } else {
                                 // 1-2. 혼자면 방 삭제
                                 deleteRoomInFirestore(roomId, onSuccess = {
-                                    Toast.makeText(context, "방이 삭제되었습니다.", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, "방이 삭제되었습니다. 히스토리를 볼 수 없습니다.", Toast.LENGTH_SHORT).show()
                                     navController.navigate(AppDestinations.LOBBY_SCREEN) {
                                         popUpTo(AppDestinations.LOBBY_SCREEN) { inclusive = true }
                                     }
@@ -300,7 +306,7 @@ fun GachigaApp(
                                 roomId = roomId,
                                 leaveUser = currentUser,
                                 onSuccess = {
-                                    Toast.makeText(context, "방에서 나왔습니다.", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, "방에서 나왔습니다. 히스토리를 볼 수 없습니다.", Toast.LENGTH_SHORT).show()
                                     navController.navigate(AppDestinations.LOBBY_SCREEN) {
                                         popUpTo(AppDestinations.LOBBY_SCREEN) { inclusive = true }
                                     }
@@ -385,6 +391,7 @@ fun GachigaApp(
 
                             // 뒤로 가기
                             onBackAction = handleBackAction,
+                            onLeaveRoom = handleLeaveRoom,
 
                             // ★ [추가] 추천받기 버튼 클릭 시 (목적지 미설정일 때 호출됨)
                             onRecommend = {
@@ -714,7 +721,8 @@ fun createRoomInFirestore(
         "createdAt" to System.currentTimeMillis(),
         "destination" to "미설정",
         "arrivalTime" to "14:00",
-        "members" to listOf(initialMember)
+        "members" to listOf(initialMember),
+        "memberIds" to listOf(hostUser.id)
     )
 
     db.collection("rooms").document(newRoomId)
@@ -761,6 +769,7 @@ fun joinRoomInFirestore(
             startPoint = "위치 선택 전"
         )
         transaction.update(roomRef, "members", FieldValue.arrayUnion(newMember))
+        transaction.update(roomRef, "memberIds", FieldValue.arrayUnion(joinUser.id))
     }.addOnSuccessListener { onSuccess() }
         .addOnFailureListener { onFailure(it) }
 }

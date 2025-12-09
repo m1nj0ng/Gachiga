@@ -88,7 +88,9 @@ data class RoomDetail(
     val invitationCode: String = (1..6).map { ('A'..'Z') + ('0'..'9') }.map { it.random() }.joinToString(""),
     val suggestedRoutes: List<SuggestedRoute> = emptyList(),
     val finalPlace: String? = null,
-    val inviteLink: String = ""
+    val inviteLink: String = "",
+
+    val memberIds: List<String> = emptyList() // 추가: 참여자 ID만 모아놓은 리스트
 )
 
 /**
