@@ -6,6 +6,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -17,6 +18,7 @@ import androidx.navigation.NavController
 import com.example.gachiga.data.Member
 import com.example.gachiga.data.RouteRepository
 import com.example.gachiga.data.SuggestedRoute
+import com.example.gachiga.navigation.AppDestinations
 import com.example.gachiga.util.RouteLogicManager
 import kotlinx.coroutines.launch
 
@@ -95,10 +97,21 @@ fun MidpointSelectScreen(
                             )
                         }
                         items(recommendedPlaces) { place ->
-                            SuggestionCard(place = place) {
-                                // ★ 클릭 시 선택 콜백 실행
-                                onPlaceSelected(place)
-                            }
+                            SuggestionCard(
+                                place = place,
+                                onClick = { onPlaceSelected(place) },
+                                // ★ [추가] 돋보기 클릭 시 지도 화면으로 이동
+                                onMapClick = {
+                                    // 'view' 모드로 이동하며 좌표와 이름을 전달합니다.
+                                    // MapSelectionScreen이 이 정보를 받아 마커를 표시합니다.
+                                    navController.navigate(
+                                        "${AppDestinations.MAP_SELECTION_SCREEN}/view/-1" +
+                                                "?lat=${place.latitude}" +
+                                                "&lng=${place.longitude}" +
+                                                "&placeName=${place.placeName}"
+                                    )
+                                }
+                            )
                         }
                     }
                 }
@@ -111,7 +124,8 @@ fun MidpointSelectScreen(
 @Composable
 fun SuggestionCard(
     place: SuggestedRoute,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onMapClick: () -> Unit
 ) {
     Card(
         modifier = Modifier
@@ -119,30 +133,42 @@ fun SuggestionCard(
             .clickable(onClick = onClick),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween, // 좌우 끝으로 배치
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // [왼쪽] 장소 정보 텍스트
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = place.placeName,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
-                // 카테고리 (예: 지하철역, 카페)
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = place.address,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color.DarkGray
+                )
+                Spacer(modifier = Modifier.height(8.dp))
                 AssistChip(
                     onClick = {},
-                    label = { Text(place.totalFee) }, // totalFee 필드를 카테고리명으로 쓰고 있음
+                    label = { Text(place.totalFee) },
                     enabled = false
                 )
             }
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = place.address,
-                style = MaterialTheme.typography.bodyMedium,
-                color = Color.DarkGray
-            )
+
+            // [오른쪽] 돋보기 아이콘 버튼
+            IconButton(onClick = onMapClick) {
+                Icon(
+                    imageVector = Icons.Default.Search,
+                    contentDescription = "지도에서 위치 보기",
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
         }
     }
 }

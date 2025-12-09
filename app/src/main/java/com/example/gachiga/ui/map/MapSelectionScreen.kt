@@ -51,6 +51,11 @@ import kotlinx.coroutines.tasks.await
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MapSelectionScreen(
+    // ★ [추가] 초기 진입 좌표 및 이름 (돋보기 기능용)
+    initialLat: Double = 0.0,
+    initialLng: Double = 0.0,
+    initialPlaceName: String? = null,
+
     onLocationSelected: (String, LatLng) -> Unit,
     onCancel: () -> Unit
 ) {
@@ -73,10 +78,7 @@ fun MapSelectionScreen(
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
 
-    // ★ FusedLocationClient (위치 서비스 객체)
     val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
-
-    // ★ 임시 API 키 (나중에 BuildConfig로 옮기는 것 추천)
     val KAKAO_API_KEY = "KakaoAK 7544546b4955f1a8476537614a2a74bf"
 
     // -----------------------------------------------------------
@@ -120,25 +122,22 @@ fun MapSelectionScreen(
     // -----------------------------------------------------------
     // [Function] 현재 위치 찾기 및 주소 변환 (역지오코딩)
     // -----------------------------------------------------------
-    @SuppressLint("MissingPermission") // 권한 체크는 호출 전에 함
+    @SuppressLint("MissingPermission")
     fun getCurrentLocationAndSelect() {
         coroutineScope.launch {
             try {
-                // 1. 마지막 위치 가져오기 (없으면 null)
                 val location = fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null).await()
 
                 if (location != null) {
                     val lat = location.latitude
                     val lng = location.longitude
 
-                    // 2. 좌표 -> 주소 변환 (Kakao API 역지오코딩)
                     val response = RetrofitInstance.api.coord2address(
                         apiKey = KAKAO_API_KEY,
                         x = lng.toString(),
                         y = lat.toString()
                     )
 
-                    // 3. 주소 문자열 추출 (도로명 우선, 없으면 지번)
                     val document = response.documents.firstOrNull()
                     val addressName = document?.roadAddress?.addressName
                         ?: document?.address?.addressName
@@ -146,7 +145,6 @@ fun MapSelectionScreen(
 
                     val latLng = LatLng.from(lat, lng)
 
-                    // 상태 갱신 + 핀 표시
                     selectedLocation = SelectedLocation(
                         name = addressName,
                         address = addressName,
@@ -168,15 +166,12 @@ fun MapSelectionScreen(
         }
     }
 
-    // -----------------------------------------------------------
-    // [Permission] 권한 요청 런처
-    // -----------------------------------------------------------
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
         val isGranted = permissions.values.all { it }
         if (isGranted) {
-            getCurrentLocationAndSelect() // 권한 허용되면 바로 위치 찾기 실행
+            getCurrentLocationAndSelect()
         } else {
             Toast.makeText(context, "위치 권한이 필요합니다.", Toast.LENGTH_SHORT).show()
         }
@@ -206,18 +201,17 @@ fun MapSelectionScreen(
                     WindowInsets.systemBars.only(WindowInsetsSides.Horizontal)
                 )
         ) {
-            // 상단 검색 영역 (Row로 감싸서 버튼 배치)
+            // 상단 검색 영역
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // 1. 검색창
                 OutlinedTextField(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
-                    modifier = Modifier.weight(1f), // 남은 공간 차지
+                    modifier = Modifier.weight(1f),
                     label = { Text("장소, 주소 검색") },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
@@ -231,10 +225,8 @@ fun MapSelectionScreen(
 
                 Spacer(modifier = Modifier.width(8.dp))
 
-                // ★ 2. [추가] 내 위치 찾기 버튼
                 IconButton(
                     onClick = {
-                        // 권한 체크 및 요청
                         if (ActivityCompat.checkSelfPermission(
                                 context,
                                 Manifest.permission.ACCESS_FINE_LOCATION
@@ -250,7 +242,7 @@ fun MapSelectionScreen(
                             )
                         }
                     },
-                    modifier = Modifier.size(56.dp) // 높이 맞춤
+                    modifier = Modifier.size(56.dp)
                 ) {
                     Icon(Icons.Default.MyLocation, contentDescription = "현재 위치로 설정")
                 }
@@ -269,6 +261,32 @@ fun MapSelectionScreen(
                             }, object : KakaoMapReadyCallback() {
                                 override fun onMapReady(map: KakaoMap) {
                                     kakaoMap = map
+
+                                    // ★ [핵심] 초기 좌표가 전달되었다면(돋보기 클릭) 바로 이동 및 핀 찍기
+                                    if (initialLat != 0.0 && initialLng != 0.0) {
+                                        val initPos = LatLng.from(initialLat, initialLng)
+                                        val initName = initialPlaceName ?: "추천 장소"
+
+                                        // 1. 카메라 이동
+                                        map.moveCamera(CameraUpdateFactory.newCenterPosition(initPos, 16))
+
+                                        // 2. 마커 찍기 (Helper 함수 사용)
+                                        // 주의: addMarkerToMap 함수는 state인 'kakaoMap'을 사용하므로,
+                                        // 여기서 state 업데이트가 반영되기 전일 수 있어 map 객체로 직접 라벨 추가
+                                        val labelManager = map.labelManager
+                                        val styles = labelManager?.addLabelStyles(
+                                            LabelStyles.from(LabelStyle.from(R.drawable.ic_map_pin))
+                                        )
+                                        val options = LabelOptions.from(initPos).setStyles(styles)
+                                        labelManager?.layer?.addLabel(options)
+
+                                        // 3. 하단 카드 띄우기
+                                        selectedLocation = SelectedLocation(
+                                            name = initName,
+                                            address = "추천된 위치입니다", // 주소는 모를 수 있으니 간단히
+                                            latLng = initPos
+                                        )
+                                    }
 
                                     // 지도 클릭 시: 역지오코딩 + 선택 카드 표시
                                     map.setOnMapClickListener { _, latLng, _, _ ->

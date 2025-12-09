@@ -508,22 +508,43 @@ fun GachigaApp(
             }
         }
 
-        // ★ [핵심 수정] 지도 선택 화면에서 좌표(LatLng)를 받아와서 State에 저장
-        // 지도 선택 화면 (디버깅 로그 & 강제 UI 업데이트 추가)
+        // [수정됨] 지도 선택 화면 연결
         composable(
-            "${AppDestinations.MAP_SELECTION_SCREEN}/{type}/{memberIndex}?roomId={roomId}",
-            arguments = listOf(navArgument("roomId") { nullable = true })
+            // 라우트 주소: 좌표와 장소 이름을 쿼리 파라미터(?key=value)로 받음
+            route = "${AppDestinations.MAP_SELECTION_SCREEN}/{type}/{memberIndex}?roomId={roomId}&lat={lat}&lng={lng}&placeName={placeName}",
+
+            arguments = listOf(
+                navArgument("roomId") { nullable = true }, // nullable = true -> 필수 아님
+                // ★ [핵심 수정] FloatType -> StringType으로 변경 (정밀도 유지 및 안전한 전달)
+                navArgument("lat") { type = NavType.StringType; nullable = true },
+                navArgument("lng") { type = NavType.StringType; nullable = true },
+                navArgument("placeName") { nullable = true }
+            )
         ) { backStackEntry ->
             val type = backStackEntry.arguments?.getString("type") ?: ""
             val memberIndex = backStackEntry.arguments?.getString("memberIndex")?.toInt() ?: -1
             val roomId = backStackEntry.arguments?.getString("roomId")
+
+            // ★ [핵심 수정] String으로 받아서 -> Double로 안전하게 변환
+            // 값이 없거나 변환 실패하면 0.0이 들어감 -> MapScreen에서 초기화 로직 안 돔 -> 안전함
+            val latStr = backStackEntry.arguments?.getString("lat")
+            val lngStr = backStackEntry.arguments?.getString("lng")
+
+            val lat = latStr?.toDoubleOrNull() ?: 0.0
+            val lng = lngStr?.toDoubleOrNull() ?: 0.0
+            val placeName = backStackEntry.arguments?.getString("placeName")
+
             val currentUser = loggedInState.currentUser
 
             MapSelectionScreen(
-                onLocationSelected = { selectedName, latLng ->
+                // 수정된 값 전달
+                initialLat = lat,
+                initialLng = lng,
+                initialPlaceName = placeName,
 
-                    val lat = latLng?.latitude ?: 0.0
-                    val lng = latLng?.longitude ?: 0.0
+                onLocationSelected = { selectedName, latLng ->
+                    val selectedLat = latLng?.latitude ?: 0.0
+                    val selectedLng = latLng?.longitude ?: 0.0
 
                     if (roomId != null && currentUser != null && roomDetailState != null) {
                         when (type) {
@@ -531,8 +552,8 @@ fun GachigaApp(
                                 // 서버 저장
                                 val updates = hashMapOf<String, Any>(
                                     "destination" to selectedName,
-                                    "destY" to lat,
-                                    "destX" to lng
+                                    "destY" to selectedLat,
+                                    "destX" to selectedLng
                                 )
                                 updateRoomInFirestore(roomId, updates) {
                                     Log.e("MAP_DEBUG", "목적지 서버 저장 실패: $it")
@@ -540,8 +561,8 @@ fun GachigaApp(
 
                                 roomDetailState = roomDetailState!!.copy(
                                     destination = selectedName,
-                                    destX = lng,
-                                    destY = lat
+                                    destX = selectedLng,
+                                    destY = selectedLat
                                 )
                                 Log.e("MAP_DEBUG", "목적지 로컬 화면 갱신 완료")
                             }
@@ -552,8 +573,8 @@ fun GachigaApp(
                                 if (myMemberInfo != null) {
                                     val newMemberInfo = myMemberInfo.copy(
                                         startPoint = selectedName,
-                                        x = lng,
-                                        y = lat,
+                                        x = selectedLng,
+                                        y = selectedLat,
                                         isReady = false
                                     )
                                     // 서버 저장
@@ -578,8 +599,8 @@ fun GachigaApp(
                             onNonLoggedInStateChange(
                                 nonLoggedInState.copy(
                                     destination = selectedName,
-                                    destX = lng,
-                                    destY = lat
+                                    destX = selectedLng,
+                                    destY = selectedLat
                                 )
                             )
                         } else if (type == "startPoint" && memberIndex != -1) {
@@ -587,8 +608,8 @@ fun GachigaApp(
                             if (memberIndex < updatedMembers.size) {
                                 updatedMembers[memberIndex] = updatedMembers[memberIndex].copy(
                                     startPoint = selectedName,
-                                    x = lng,
-                                    y = lat
+                                    x = selectedLng,
+                                    y = selectedLat
                                 )
                                 onNonLoggedInStateChange(nonLoggedInState.copy(members = updatedMembers))
                             }
