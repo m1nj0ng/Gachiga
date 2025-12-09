@@ -623,7 +623,14 @@ fun GachigaApp(
                         }
                     }
 
-                    navController.popBackStack()
+                    // 뒤로가기 로직 변경
+                    // ★ 비로그인 모드(roomId 없음)이고 목적지를 설정한 경우 -> InputScreen까지 한 번에 이동
+                    if (roomId == null && type == "destination") {
+                        navController.popBackStack(AppDestinations.INPUT_SCREEN, false)
+                    } else {
+                        // 그 외(로그인 모드, 출발지 설정 등)는 바로 이전 화면으로 이동
+                        navController.popBackStack()
+                    }
                 },
                 onCancel = { navController.popBackStack() }
             )

@@ -100,12 +100,12 @@ fun MidpointSelectScreen(
                             SuggestionCard(
                                 place = place,
                                 onClick = { onPlaceSelected(place) },
-                                // ★ [추가] 돋보기 클릭 시 지도 화면으로 이동
                                 onMapClick = {
                                     // 'view' 모드로 이동하며 좌표와 이름을 전달합니다.
                                     // MapSelectionScreen이 이 정보를 받아 마커를 표시합니다.
                                     navController.navigate(
-                                        "${AppDestinations.MAP_SELECTION_SCREEN}/view/-1" +
+                                        // "view" -> "destination" 으로 변경
+                                        "${AppDestinations.MAP_SELECTION_SCREEN}/destination/-1" +
                                                 "?lat=${place.latitude}" +
                                                 "&lng=${place.longitude}" +
                                                 "&placeName=${place.placeName}"
