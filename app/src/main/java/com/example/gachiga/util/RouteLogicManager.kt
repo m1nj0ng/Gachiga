@@ -17,6 +17,7 @@ class RouteLogicManager(private val repository: RouteRepository) {
      */
     suspend fun calculateRoutes(
         members: List<Member>,
+        destName: String, // ★ [추가] 목적지 이름
         destX: Double,
         destY: Double,
         targetTime: Calendar?,
@@ -106,7 +107,8 @@ class RouteLogicManager(private val repository: RouteRepository) {
         val groups = RouteOptimizer.findGroups(members, allRouteMap)
 
         if (targetTime != null) {
-            logBuilder.append("⏰ 도착 시간: ${timeFormat.format(targetTime.time)}\n")
+            // ★ [수정] 도착 시간 옆에 목적지 이름 추가
+            logBuilder.append("⏰ 도착 시간: ${timeFormat.format(targetTime.time)} ($destName)\n")
         }
         logBuilder.append("✨ [그룹 분석 결과] (${groups.size}개 그룹)\n")
         logBuilder.append("--------------------------------\n")
@@ -120,11 +122,23 @@ class RouteLogicManager(private val repository: RouteRepository) {
                     val route = allRouteMap[solo.id]
                     if (route != null) {
                         val soloLog = buildString {
+                            // 1. 정보 출력
                             appendUserLog(this, solo, route, rawTransitPaths[solo.id], limitStationName = null)
+
+                            // 2. 시간 출력
                             if (targetTime != null) {
-                                val departTime = (targetTime.clone() as Calendar).apply { add(Calendar.SECOND, -route.sectionTimeSeconds) }
-                                appendTimeLog(this, departTime, now, timeFormat)
+                                val departTime = (targetTime.clone() as Calendar).apply {
+                                    add(Calendar.SECOND, -route.sectionTimeSeconds)
+                                }
+                                appendTimeLog(this, departTime, now, timeFormat, solo.startPoint)
                             }
+
+                            // ★ [추가] 3. 경로 상세 출력 (시간 밑으로 이동됨)
+                            if (solo.mode == TravelMode.TRANSIT) {
+                                append("   ㄴ 경로 상세:\n")
+                                generateDetailedPathLog(this, rawTransitPaths[solo.id] ?: emptyList(), null)
+                            }
+
                             append("\n")
                         }
                         logBuilder.append(soloLog)
@@ -224,8 +238,8 @@ class RouteLogicManager(private val repository: RouteRepository) {
                 // -----------------------------------------------------
                 val leaderLog = buildString {
                     append("👑 ${leader.name} (대장)\n")
-                    appendBasicInfo(this, leader, leaderRoute)
-                    if (leaderStartTime != null) appendTimeLog(this, leaderStartTime, now, timeFormat)
+                    appendBasicInfo(this, leader, leaderRoute)// ★ [수정] 대장 출발지 이름 전달
+                    if (leaderStartTime != null) appendTimeLog(this, leaderStartTime, now, timeFormat, leader.startPoint)
                     if (leader.mode == TravelMode.TRANSIT) {
                         append("   ㄴ 경로 상세:\n")
                         generateDetailedPathLog(this, rawTransitPaths[leader.id] ?: emptyList(), null)
@@ -262,7 +276,8 @@ class RouteLogicManager(private val repository: RouteRepository) {
                                     add(Calendar.SECOND, -fTime)
                                     add(Calendar.MINUTE, -5)
                                 }
-                                appendTimeLog(this, departTime, now, timeFormat)
+                                // ★ [수정] 팔로워 출발지 이름 전달
+                                appendTimeLog(this, departTime, now, timeFormat, member.startPoint)
                                 append("   ㄴ 💡 합류 시간: ${timeFormat.format(meetTime.time)} 합류 예정 (5분 대기)\n")
                             }
                             if (member.mode == TravelMode.TRANSIT) {
@@ -275,7 +290,8 @@ class RouteLogicManager(private val repository: RouteRepository) {
                             append("   ㄴ (합류 실패: 각자 이동)\n")
                             if (targetTime != null) {
                                 val departTime = (targetTime.clone() as Calendar).apply { add(Calendar.SECOND, -memberRoute.sectionTimeSeconds) }
-                                appendTimeLog(this, departTime, now, timeFormat)
+                                // ★ [수정] 합류 실패 시에도 출발지 이름 전달
+                                appendTimeLog(this, departTime, now, timeFormat, member.startPoint)
                             }
                             if (member.mode == TravelMode.TRANSIT) {
                                 append("   ㄴ 경로 상세:\n")
@@ -347,24 +363,32 @@ class RouteLogicManager(private val repository: RouteRepository) {
                 } // End of Follower Loop
 
                 // ★ [핵심 로직] 대장 데이터 수집 (루프 끝난 후 처리)
-                // 대장은 가장 빨리 만난 지점(earliestLeaderCutIdx)부터 빨개집니다.
                 if (earliestLeaderCutIdx != Int.MAX_VALUE) {
-                    // ★ [저장] 전체 화면 복구 시 대장도 여기서 잘라야 빨간선과 안 겹침!
                     cutIndicesCollector[leader.id] = earliestLeaderCutIdx
 
+                    // ★ [수정] 중복 제거: '나 (대장)' 헤더 삭제
                     if (leader.id == myMemberId) {
                         myLogBuilder.append(leaderLog)
 
-                        // [파란 구간] 출발 ~ 첫 합류
-                        myPathPoints = leaderRoute.points.take(earliestLeaderCutIdx + 1)
-                        // [빨간 구간] 첫 합류 ~ 목적지
-                        myRedPathPoints = leaderRoute.points.drop(earliestLeaderCutIdx)
+                        // [나의 경로 데이터 담기]
+                        // 대중교통 대장이라면? -> 자르지 말고 끝까지 다 내 경로로 칩니다. (빨간선은 덧칠용)
+                        if (leader.mode == TravelMode.TRANSIT) {
+                            myPathPoints = leaderRoute.points // 전체 경로
+                            myRedPathPoints = leaderRoute.points.drop(earliestLeaderCutIdx) // 빨간선 (덧칠용)
+                        } else {
+                            // 자동차/도보 대장 -> 잘라서 담음
+                            myPathPoints = leaderRoute.points.take(earliestLeaderCutIdx + 1)
+                            myRedPathPoints = leaderRoute.points.drop(earliestLeaderCutIdx)
+                        }
                     }
 
-                    // [그리기] 대장 파란선 (잘라서 그림)
+                    // [지도 그리기]
                     if (leader.mode == TravelMode.TRANSIT) {
-                        visualizer.drawTransitRouteCut(rawTransitPaths[leader.id] ?: emptyList(), earliestLeaderCutIdx, leader.color)
+                        // ★ [수정] 대중교통 대장은 자르지 않고 끝까지 그립니다! (Int.MAX_VALUE)
+                        // 그래야 빨간선(투명 테두리) 밑에 노선 색깔이 깔립니다.
+                        visualizer.drawTransitRouteCut(rawTransitPaths[leader.id] ?: emptyList(), Int.MAX_VALUE, leader.color)
                     } else {
+                        // 자동차/도보는 기존대로 잘라서 그림
                         visualizer.drawPolyline(leaderRoute.points.take(earliestLeaderCutIdx + 1), leader.color)
                     }
                 } else {
@@ -397,9 +421,17 @@ class RouteLogicManager(private val repository: RouteRepository) {
 
     // --- Helper Functions ---
 
-    private fun appendTimeLog(sb: StringBuilder, departTime: Calendar, now: Calendar, fmt: java.text.SimpleDateFormat) {
+    // ★ [수정] locationName 인자 추가
+    private fun appendTimeLog(
+        sb: StringBuilder,
+        departTime: Calendar,
+        now: Calendar,
+        fmt: java.text.SimpleDateFormat,
+        locationName: String // 추가된 파라미터
+    ) {
         val timeStr = fmt.format(departTime.time)
-        sb.append("   ㄴ ⏰ 출발: $timeStr")
+        // ★ [수정] 시간 옆에 (장소이름) 붙이기
+        sb.append("   ㄴ ⏰ 출발: $timeStr ($locationName)")
         if (departTime.before(now)) {
             val diff = (now.timeInMillis - departTime.timeInMillis) / (1000 * 60)
             sb.append(" (⚠️ 지각! ${diff}분 전 출발했어야 함)\n")
@@ -430,13 +462,6 @@ class RouteLogicManager(private val repository: RouteRepository) {
         }
         sb.append("${u.name} ($modeKorean)\n")
         appendBasicInfo(sb, u, route)
-
-        if (u.mode == TravelMode.TRANSIT && rawPaths != null) {
-            sb.append("   ㄴ 경로 상세:\n")
-            generateDetailedPathLog(sb, rawPaths, limitStationName)
-        } else if (limitStationName != null && u.mode != TravelMode.TRANSIT) {
-            sb.append("   ㄴ 경로: $limitStationName 에서 합류!\n")
-        }
     }
 
     /**

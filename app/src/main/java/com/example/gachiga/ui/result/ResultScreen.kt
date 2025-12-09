@@ -201,6 +201,7 @@ fun ResultScreen(
                                                 // 4. 진짜 계산 로직 호출! (지도 그리기 + 로그 생성)
                                                 val result = logicManager.calculateRoutes(
                                                     members = gachigaState.members,
+                                                    destName = gachigaState.destination, // ★ [추가] 목적지 이름 전달
                                                     destX = destX,
                                                     destY = destY,
                                                     targetTime = targetTime,

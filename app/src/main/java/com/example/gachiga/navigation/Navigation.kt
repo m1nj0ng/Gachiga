@@ -111,7 +111,7 @@ fun GachigaApp(
                             onSuccess = { createdRoomId, inviteLink ->
                                 if (createdRoomId.isNotBlank()) {
                                     Log.d("Navigation", "방 생성 성공! ID: $createdRoomId")
-                                    
+
                                     val hostMember = RoomMember(user = currentUser, isHost = true)
                                     roomDetailState = newRoom.copy(
                                         roomId = createdRoomId,
