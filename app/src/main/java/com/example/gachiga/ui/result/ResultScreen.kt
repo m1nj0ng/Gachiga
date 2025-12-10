@@ -40,7 +40,13 @@ fun ResultScreen(
     repository: RouteRepository, // 더미 데이터 대신 Repository 받음
     gachigaState: GachigaState,   // 사용자 입력 정보 받음
     onBackToEdit: () -> Unit, // 추가: Navigation에서 넘겨준 뒤로 가기 함수 받음
-    currentUserId: Int? = null // ★ [추가] 내 ID를 알아야 내 경로를 찾습니다.
+    currentUserId: Int? = null, // ★ [추가] 내 ID를 알아야 내 경로를 찾습니다.
+
+    // ★ [추가] 저장된 데이터 확인용
+    roomDetail: com.example.gachiga.data.RoomDetail,
+    // ★ [추가] 계산 결과 저장용 콜백 함수 (Navigation에서 넘겨줌)
+    onSaveResult: (Map<String, Any>) -> Unit
+
 ) {
     // ★ 공유용 Context
     val context = LocalContext.current
@@ -186,44 +192,82 @@ fun ResultScreen(
                                     visualizer = newVisualizer // 바깥 상태 변수 업데이트 (UI 갱신용)
 
                                     // 2. 입력 데이터 준비 (목적지 좌표 등)
-                                    val destX = gachigaState.destX
-                                    val destY = gachigaState.destY
+                                    if (roomDetail.savedPathData.isNotEmpty()) {
+                                        // 1. 텍스트 복구
+                                        calculationLog = roomDetail.savedResultLog
 
-                                    if (destX != null && destY != null && calcResult == null) {
-                                        calculationLog = "경로 계산 중..."
+                                        // 2. 지도(선) 복구 (API 호출 X)
+                                        newVisualizer.restorePaths(roomDetail.savedPathData)
 
-                                        // 3. 코루틴으로 계산 시작
-                                        coroutineScope.launch {
-                                            try {
-                                                // 도착 시간 파싱 (HH:mm 문자열 -> Calendar)
-                                                val targetTime = parseTime(gachigaState.arrivalTime)
-
-                                                // 4. 진짜 계산 로직 호출! (지도 그리기 + 로그 생성)
-                                                val result = logicManager.calculateRoutes(
-                                                    members = gachigaState.members,
-                                                    destName = gachigaState.destination, // ★ [추가] 목적지 이름 전달
-                                                    destX = destX,
-                                                    destY = destY,
-                                                    targetTime = targetTime,
-                                                    // ★ [수정] 상태 변수(visualizer) 대신
-                                                    // 로컬 변수(newVisualizer)를 넘깁니다.
-                                                    visualizer = newVisualizer,
-                                                    myMemberId = currentUserId
-                                                )
-                                                // 5. 결과 업데이트
-                                                calcResult = result // ★ [수정] 객체 저장
-                                                calculationLog = result.fullLog // ★ [수정] 전체 로그 표시
-                                                isCalculating = false // ★ [추가]
-
-                                            } catch (e: Exception) {
-                                                e.printStackTrace()
-                                                calculationLog = "계산 중 오류 발생: ${e.message}"
-                                                isCalculating = false // ★ [추가]
-                                            }
-                                        }
-                                    } else if (destX == null || destY == null) {
-                                        calculationLog = "오류: 목적지 좌표가 설정되지 않았습니다."
                                         isCalculating = false
+
+                                        // 복구된 데이터를 calcResult에도 넣어주면 좋음 (선택사항)
+                                        // (내 경로 보기 모드 등을 위해 필요하다면 여기서 calcResult 재구성 로직 추가 가능)
+                                    }
+                                    // CASE 2: 처음 들어옴 (계산 필요)
+                                    else {
+                                        val destX = gachigaState.destX
+                                        val destY = gachigaState.destY
+
+                                        if (destX != null && destY != null) {
+                                            calculationLog = "경로 계산 중..."
+
+                                            coroutineScope.launch {
+                                                try {
+                                                    // 1. API 계산 수행
+                                                    val result = logicManager.calculateRoutes(
+                                                        members = gachigaState.members,
+                                                        destName = gachigaState.destination,
+                                                        destX = destX,
+                                                        destY = destY,
+                                                        targetTime = parseTime(gachigaState.arrivalTime) ?: Calendar.getInstance(),
+                                                        visualizer = newVisualizer,
+                                                        myMemberId = currentUserId
+                                                    )
+
+                                                    // 2. 화면 갱신
+                                                    calcResult = result
+                                                    calculationLog = result.fullLog
+                                                    isCalculating = false
+
+                                                    // 3. ★★★ [저장] 결과를 DB에 박제! ★★★
+                                                    // (로그인 유저인 경우에만 저장)
+                                                    if (currentUserId != null) {
+
+                                                        // (1) 지도에 그린 선들을 저장 가능한 형태(SimpleLatLng)로 변환
+                                                        val savePathData = result.allRoutes.map { (id, segment) ->
+                                                            com.example.gachiga.data.MemberPathData(
+                                                                memberId = id,
+                                                                // 멤버 색상 찾기
+                                                                color = gachigaState.members.find { it.id == id }?.color ?: 0,
+                                                                // 좌표 변환 (SDK LatLng -> Data SimpleLatLng)
+                                                                points = segment.points.map {
+                                                                    com.example.gachiga.data.SimpleLatLng(it.latitude, it.longitude)
+                                                                }
+                                                            )
+                                                        }
+
+                                                        // (2) 업데이트할 데이터 맵 생성
+                                                        val updates = mapOf(
+                                                            "savedResultLog" to result.fullLog,
+                                                            "savedPathData" to savePathData,
+                                                            "isCalculating" to false // 계산 끝남
+                                                        )
+
+                                                        // (3) Navigation에서 받은 함수 호출 (깔끔!)
+                                                        onSaveResult(updates)
+                                                    }
+
+                                                } catch (e: Exception) {
+                                                    e.printStackTrace()
+                                                    calculationLog = "계산 중 오류 발생: ${e.message}"
+                                                    isCalculating = false
+                                                }
+                                            }
+                                        } else {
+                                            calculationLog = "오류: 목적지 좌표가 설정되지 않았습니다."
+                                            isCalculating = false
+                                        }
                                     }
                                 }
                             })

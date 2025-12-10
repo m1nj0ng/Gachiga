@@ -200,4 +200,27 @@ class RouteVisualizer(private val kakaoMap: KakaoMap) {
         val allPoints = if (redPoints != null) myPoints + redPoints else myPoints
         moveCameraToFit(allPoints)
     }
+
+    fun restorePaths(savedData: List<com.example.gachiga.data.MemberPathData>) {
+        // 1. 기존 그림 지우기
+        clear()
+
+        val allPointsForCamera = mutableListOf<LatLng>()
+
+        // 2. 저장된 선들 다시 그리기
+        savedData.forEach { data ->
+            // SimpleLatLng -> Kakao LatLng 변환
+            val kakaoPoints = data.points.map { LatLng.from(it.lat, it.lng) }
+
+            // 선 그리기
+            drawPolyline(kakaoPoints, data.color)
+
+            allPointsForCamera.addAll(kakaoPoints)
+        }
+
+        // 3. 카메라 조정
+        if (allPointsForCamera.isNotEmpty()) {
+            moveCameraToFit(allPointsForCamera)
+        }
+    }
 }

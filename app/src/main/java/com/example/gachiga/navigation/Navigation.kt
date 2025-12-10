@@ -206,7 +206,7 @@ fun GachigaApp(
                                     roomDetailState = roomData // 1. 화면 갱신
 
                                     // 2. isCalculating 켜졌는지 확인!
-                                    if (roomData.isCalculating) {
+                                    if (roomData.isCalculating || roomData.savedResultLog.isNotBlank()) {
 
                                         // 데이터를 GachigaState으로 변환 (로직용 Member로 변환)
                                         // ★ [핵심 수정] mapIndexed로 순서에 맞는 색상 부여
@@ -647,19 +647,39 @@ fun GachigaApp(
                 navController = navController,
                 repository = repository,
                 gachigaState = nonLoggedInState,
+                currentUserId = loggedInState.currentUser?.id?.hashCode(),
+                roomDetail = roomDetailState!!,
+                onSaveResult = { updates ->
+                    if (currentRoomId != null) {
+                        updateRoomInFirestore(currentRoomId, updates) { e ->
+                            Log.e("Nav", "결과 저장 실패: $e")
+                        }
+                    }
+                },
 
                 // 뒤로 가기 눌렀을 때 행동
                 onBackToEdit = {
-                    // 방장이라면 Firebase에 계산 끝났다(false)고 알림
-                    if (currentRoomId != null) {
-                        updateRoomInFirestore(currentRoomId, mapOf("isCalculating" to false)) {}
+                    if (currentRoomId != null && isHost) {
+                        // ★★★ [핵심] 방장이라면 결과를 '폐기'하고 입력 화면으로 돌아감 ★★★
+                        // 이렇게 비워줘야 무한 루프에 안 빠지고 수정을 할 수 있음
+                        val updates = mapOf(
+                            "isCalculating" to false,       // 계산 상태 해제
+                            "savedResultLog" to "",         // 텍스트 결과 삭제
+                            "savedPathData" to emptyList<Any>(), // 지도 경로 데이터 삭제
+                            "suggestedRoutes" to emptyList<Any>() // (선택) 추천 경로도 초기화할지 결정
+                        )
+                        updateRoomInFirestore(currentRoomId, updates) {
+                            Log.e("Nav", "결과 초기화 실패: $it")
+                        }
                     }
+
+                    // 만약 '히스토리 보기'로 들어온 거라면 로비로 가야 하지 않나?
+                    // -> 히스토리로 들어왔어도 '뒤로 가기'를 누르면 수정을 의미하므로 데이터를 지우는 게 맞음.
+                    // -> 그냥 보고 나가려면 '홈 버튼'이나 앱 종료를 할 테니까.
                     navController.popBackStack()
                 },
                 // 1순위: 로그인한 유저 ID (Firebase)
                 // 2순위: 없으면 그냥 멤버 리스트의 첫 번째 사람을 '나'로 간주 (비로그인 테스트용)
-                // 아래 주석 지우면 로그인/비로그인 모두 "내 경로만 자세히 보기" 가능
-                currentUserId = loggedInState.currentUser?.id?.hashCode()//?: nonLoggedInState.members.firstOrNull()?.id
             )
         }
     }

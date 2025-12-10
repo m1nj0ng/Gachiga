@@ -90,7 +90,23 @@ data class RoomDetail(
     val finalPlace: String? = null,
     val inviteLink: String = "",
 
-    val memberIds: List<String> = emptyList() // 추가: 참여자 ID만 모아놓은 리스트
+    val memberIds: List<String> = emptyList(), // 추가: 참여자 ID만 모아놓은 리스트
+
+    val savedResultLog: String = "",       // 텍스트 로그
+    val savedPathData: List<MemberPathData> = emptyList() // 지도에 그릴 좌표들
+)
+
+// 추가: 지도 복구용 데이터 클래스
+data class MemberPathData(
+    val memberId: Int = 0,
+    val points: List<SimpleLatLng> = emptyList(), // 경로 좌표들
+    val color: Int = 0
+)
+
+// 추가: Firestore 저장용 단순 좌표 클래스
+data class SimpleLatLng(
+    val lat: Double = 0.0,
+    val lng: Double = 0.0
 )
 
 /**
