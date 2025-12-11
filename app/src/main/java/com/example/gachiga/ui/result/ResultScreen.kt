@@ -40,7 +40,7 @@ fun ResultScreen(
     repository: RouteRepository, // 더미 데이터 대신 Repository 받음
     gachigaState: GachigaState,   // 사용자 입력 정보 받음
     onBackToEdit: () -> Unit, // 추가: Navigation에서 넘겨준 뒤로 가기 함수 받음
-    currentUserId: Int? = null, // ★ [추가] 내 ID를 알아야 내 경로를 찾습니다.
+    currentUserId: Int = 0, // ★ [추가] 내 ID를 알아야 내 경로를 찾습니다.
 
     // ★ [추가] 저장된 데이터 확인용
     roomDetail: com.example.gachiga.data.RoomDetail,
@@ -232,7 +232,7 @@ fun ResultScreen(
 
                                                     // 3. ★★★ [저장] 결과를 DB에 박제! ★★★
                                                     // (로그인 유저인 경우에만 저장)
-                                                    if (currentUserId != null) {
+                                                    if (currentUserId != 0) {
 
                                                         // (1) 지도에 그린 선들을 저장 가능한 형태(SimpleLatLng)로 변환
                                                         val savePathData = result.allRoutes.map { (id, segment) ->
@@ -311,8 +311,8 @@ fun ResultScreen(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // 비로그인(= currentUserId == null)일 때만 결과 공유 버튼 표시
-                if (currentUserId == null) {
+                // 비로그인(= currentUserId == 0)일 때만 결과 공유 버튼 표시
+                if (currentUserId == 0) {
                     Button(
                         onClick = { shareResult(calculationLog) },
                         enabled = !isCalculating && calculationLog.isNotBlank(),

@@ -647,8 +647,8 @@ fun GachigaApp(
                 navController = navController,
                 repository = repository,
                 gachigaState = nonLoggedInState,
-                currentUserId = loggedInState.currentUser?.id?.hashCode(),
-                roomDetail = roomDetailState!!,
+                currentUserId = loggedInState.currentUser?.id?.hashCode() ?: 0,
+                roomDetail = roomDetailState ?: RoomDetail(),
                 onSaveResult = { updates ->
                     if (currentRoomId != null) {
                         updateRoomInFirestore(currentRoomId, updates) { e ->
@@ -842,9 +842,11 @@ fun leaveRoomInFirestore(
 
         // 나가는 멤버를 제외하고 새로운 리스트 생성 - Compose 화면에서 자동으로 번호가 앞당겨지는 효과
         val newMemberList = currentMembers.filter { it.user.id != leaveUser.id }
+        val newMemberIds = newMemberList.map { it.user.id }
 
         // 새로운 리스트로 덮어쓰기
         transaction.update(roomRef, "members", newMemberList)
+        transaction.update(roomRef, "memberIds", newMemberIds)
 
     }.addOnSuccessListener { onSuccess() }
         .addOnFailureListener { onFailure(it) }
@@ -882,8 +884,12 @@ fun transferHostAndLeaveRoomInFirestore(
             }
         }
 
+        val newMemberIds = updatedMembers.map { it.user.id }
+
         // Firebase 업데이트 (새 멤버 리스트로 덮어쓰기)
         transaction.update(roomRef, "members", updatedMembers)
+        transaction.update(roomRef, "memberIds", newMemberIds)
+
 
     }.addOnSuccessListener { onSuccess() }
         .addOnFailureListener { onFailure(it) }
